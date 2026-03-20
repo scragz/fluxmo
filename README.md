@@ -1,0 +1,167 @@
+# fluxmo
+
+Community tool for parsing, displaying, diffing, and editing FLUX by IOLabs preset files.
+
+See `format_map.md` for the full reverse-engineered binary format documentation.
+
+---
+
+## Setup
+
+```
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
+
+Requires Python 3.12+.
+
+---
+
+## Usage
+
+```
+python3 main.py <command> [args]
+```
+
+### Commands
+
+#### `show` — display all decoded parameters
+
+```
+python3 main.py show <file.TXT>
+```
+
+Auto-detects preset vs PREF file by filename. Prints all channels, steps, and
+per-channel config. Verbose output includes LFO parameters.
+
+#### `pref` — display persistent config file
+
+```
+python3 main.py pref <PREF*.TXT>
+```
+
+Parses the persistent device configuration saved at the SD card root. Shows
+clock mode, button modes, shuffle depth, SH16 values, MIDI velocities, and BPM.
+
+#### `step` — inspect a single step
+
+```
+python3 main.py step <file.TXT> <ch> <step>
+```
+
+- `ch`: channel number 1–4
+- `step`: step number 1–16
+
+Prints every known parameter for that step with its certainty level.
+
+#### `diff` — byte-level diff between two preset files
+
+```
+python3 main.py diff <A.TXT> <B.TXT>
+```
+
+Shows every differing byte with its offset, old and new values (decimal + hex),
+and a label if the offset is a known parameter. Use this to map unknown offsets:
+
+1. Set exactly **one parameter** on the device
+2. Save the preset to SD card
+3. Run `diff OLD.TXT NEW.TXT`
+4. The differing offset is the parameter's storage location
+
+#### `set` — edit a single parameter
+
+```
+python3 main.py set <file.TXT> <param> <ch> <step> <value> [out.TXT]
+```
+
+If `out.TXT` is omitted, the input file is overwritten. Unknown/uncertain regions
+are preserved byte-for-byte.
+
+**Editable parameters:**
+
+| Param     | Description                      | Type   | Offset  | Certainty |
+|-----------|----------------------------------|--------|---------|-----------|
+| `loop`    | Loop length 1–16                 | uint8  | 0x0000  | LIKELY    |
+| `gate`    | Trigger length % 0–99            | uint8  | 0x0040  | LIKELY    |
+| `leng`    | Step length in 16ths 1–16        | uint8  | 0x0080  | CONFIRMED |
+| `aux2`    | AUX2 mode index (see `map`)      | uint8  | 0x00C0  | LIKELY    |
+| `dens`    | Trigger density 0–64             | uint8  | 0x0200  | CONFIRMED |
+| `huma`    | Humanize 0–127                   | uint8  | 0x0340  | LIKELY    |
+| `phas`    | Phase shift degrees 0–360        | uint16 | 0x0380  | CONFIRMED |
+| `mod_bus` | Mod bus bitmask YEL=1,GRY=2,PUR=4 | uint8 | 0x0480  | CONFIRMED |
+| `prob_val`| Probability % 0–100             | uint8  | 0x0640  | LIKELY    |
+| `quan`    | Quantizer semitones 0–12         | uint8  | 0x07C0  | LIKELY    |
+| `aux1`    | AUX1 mode index (see `map`)      | uint8  | 0x0A00  | LIKELY    |
+| `minv`    | Min CV voltage mV (signed)       | int16  | 0x0500  | LIKELY    |
+| `maxv`    | Max CV voltage mV 0–8000         | uint16 | 0x0580  | CONFIRMED |
+| `freq`    | LFO frequency Hz                 | float  | 0x0680  | CONFIRMED |
+| `cvsel`   | LFO CV source 0–9                | uint8  | 0x0400  | UNCERTAIN |
+| `sync`    | LFO sync mode 0–4               | uint8  | 0x0440  | UNCERTAIN |
+| `s_h`     | Sample & Hold 0/1                | uint8  | 0x0780  | UNCERTAIN |
+
+Example:
+
+```
+python3 main.py set DEFAULT_.TXT dens 1 3 8 out.TXT
+```
+
+Sets trigger density to 8 on CH1, step 3, writing to `out.TXT`.
+
+#### `hex` — hexdump a region
+
+```
+python3 main.py hex <file.TXT> [offset] [length]
+```
+
+`offset` and `length` accept decimal or `0x`-prefixed hex. Defaults: offset=0, length=256.
+
+#### `map` — print parameter offset map
+
+```
+python3 main.py map
+```
+
+Prints the full offset table for per-step arrays, per-channel records, and the
+AUX mode index list.
+
+---
+
+## Project layout
+
+```
+main.py                  CLI entry point
+src/fluxmo/
+  pref.py                FluxPrefs — PREF*.TXT parser/serializer
+  preset.py              FluxPreset — preset .TXT parser/serializer + format constants
+  diff.py                diff_presets, hexdump utilities
+format_map.md            Full reverse-engineered format documentation
+```
+
+---
+
+## File types
+
+```
+SD card root/
+  FLUX/             ← preset directory
+    DEFAULT_.TXT    ← preset named "DEFAULT " (8-char padded)
+    MYPATCH_.TXT    ← other presets
+  PREFxxx.TXT       ← persistent device config (saved on each change)
+```
+
+Despite `.TXT` extension, all files are pure binary.
+
+---
+
+## Certainty levels
+
+| Label     | Meaning |
+|-----------|---------|
+| CONFIRMED | Verified against hardware or manual defaults |
+| LIKELY    | Strongly inferred from 87-file corpus analysis |
+| UNCERTAIN | Structural guess, needs hardware validation |
+
+---
+
+*Reverse-engineered by the FLUX community, 2026. Contribute by diffing before/after saves.*
