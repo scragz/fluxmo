@@ -1,40 +1,8 @@
-# FLUX by IOLabs — Reverse-Engineered File Format
+# FLUX Preset File Format
 
-**Firmware analysed:** v1.07–v1.08 (Boolean Logic Update)
-**Corpus:** 87 preset files across v1 (3860B), v2 (6404B), v3 (8196B) formats
-**Tool:** `flux_editor.py` — parse, display, diff, and edit presets
-
-Certainty levels: **CONFIRMED** = verified against hardware/manual defaults · **LIKELY** = strong inference from corpus · **UNCERTAIN** = structural guess, needs validation
-
----
-
-## File Types
-
-```
-SD card root/
-  FLUX/             ← preset directory
-    DEFAULT_.TXT    ← preset named "DEFAULT " (8-char padded)
-    MYPATCH_.TXT    ← other presets
-  PREFxxx.TXT       ← persistent device config (saved on each change)
-```
-
-Despite `.TXT` extension, all files are pure binary. FAT16 timestamps cluster near 2000-01-01 (FAT epoch, not real timestamps).
-
----
-
-## Format Versions
-
-### PREF files (persistent config)
-
-| Version | Firmware  | Size   | Added |
-|---------|-----------|--------|-------|
-| 1.5     | ~v1.05    | 20 B   | Baseline config |
-| 1.6     | ~v1.06    | 20 B   | MIDI clock modes |
-| 3.3     | v1.06N+   | 44 B   | VELO/AUX1/AUX2 per channel |
-| 3.3     | v1.07     | 46 B   | BPM field |
-| 3.3     | v1.08     | 262 B  | Extended block (unknown content) |
-
-### Preset files (FLUX/*.TXT)
+**Applies to:** `FLUX/*.TXT` files on the SD card
+**Format versions:** v1 (3860 B), v2 (6404 B), v3 (8196 B)
+**Analysis based on:** firmware v1.07–v1.08, corpus of 87 preset files
 
 | Version | Firmware  | Size    | Notes |
 |---------|-----------|---------|-------|
@@ -44,36 +12,9 @@ Despite `.TXT` extension, all files are pure binary. FAT16 timestamps cluster ne
 
 ---
 
-## PREF Files
+## Structure
 
-Bytes 2–3 identify format version. Layout:
-
-| Offset | Size | Type   | Field           | Default | Certainty | Notes |
-|--------|------|--------|-----------------|---------|-----------|-------|
-| 0      | 1    | uint8  | status_byte     | 0xF0    | UNCERTAIN | Device state flags |
-| 1      | 1    | uint8  | (unknown)       | 0x00    | UNCERTAIN | |
-| 2      | 1    | uint8  | fmt_major       | —       | CONFIRMED | Format version major (1 or 3) |
-| 3      | 1    | uint8  | fmt_minor       | —       | CONFIRMED | Format version minor (5, 6, or 3) |
-| 4      | 1    | uint8  | (unknown)       | 0x00    | UNCERTAIN | |
-| 5      | 1    | uint8  | clk_mode        | 0       | LIKELY    | 0=INT, 1=EXT, 2=EXTS, 3=MIDI, 4=BURST |
-| 6      | 1    | uint8  | star_mode       | 0       | LIKELY    | * button: 0=MOM, 1=LAT |
-| 7      | 1    | uint8  | all_mode        | 0       | LIKELY    | ALL button: 0=MOM, 1=LAT |
-| 8–15   | 8    | 4×uint16 | shuf[ch1–ch4] | 0     | CONFIRMED | Shuffle depth per channel, degrees (0–360) |
-| 16–19  | 4    | 4×uint8  | sh16[ch1–ch4] | 2     | CONFIRMED | SH16 value per channel |
-
-**Format v3.3+ only (≥44 bytes):**
-
-| Offset | Size | Type   | Field              | Certainty | Notes |
-|--------|------|--------|--------------------|-----------|-------|
-| 20–43  | 24   | —      | velo/aux1_vel/aux2_vel × 4ch | CONFIRMED | 3×uint16 per channel: main MIDI velo, AUX1 velo, AUX2 velo |
-| 44–45  | 2    | uint16 | bpm_stored         | CONFIRMED | BPM − 95 (e.g. 120 BPM → stored as 25) |
-| 46+    | —    | —      | (extended data)    | UNCERTAIN | Added v1.08, mostly zeros |
-
----
-
-## FLUX Preset Files
-
-**Size:** 8196 bytes (v3). The sequencer has **4 channels × 16 steps = 64 step slots**.
+The sequencer has **4 channels × 16 steps = 64 step slots**.
 
 All per-step parameters use a flat array of 64 values:
 ```
@@ -92,7 +33,7 @@ Slot 0 = CH1/S1, slot 1 = CH1/S2, ..., slot 16 = CH2/S1, etc.
 
 ---
 
-### Section A: Per-Step Arrays, 0x0000–0x07FF
+## Section A: Per-Step Arrays, 0x0000–0x07FF
 
 Each entry covers all 64 step slots. Unless noted, each is 64 bytes (1 byte/slot).
 
@@ -141,7 +82,7 @@ Each entry covers all 64 step slots. Unless noted, each is 64 bytes (1 byte/slot
 
 ---
 
-### Section B: Per-Step Arrays, 0x0800+
+## Section B: Per-Step Arrays, 0x0800+
 
 A second set of per-step parameters begins at 0x0800. Structure less mapped than Section A.
 
@@ -160,7 +101,7 @@ A second set of per-step parameters begins at 0x0800. Structure less mapped than
 
 ---
 
-### Section 3: Per-Channel Records, 0x1B80
+## Section 3: Per-Channel Records, 0x1B80
 
 4 records × 128 bytes, one per channel.
 
@@ -203,9 +144,17 @@ AUX1 and AUX2 each store one of these indices per step (uint8, 0-indexed):
 
 ---
 
-## Key Labeling Corrections (session history)
+## File Integrity Notes
 
-These were previously mislabeled; corpus analysis across 87 files revealed the errors:
+- **No checksum or CRC** identified. Files load as-is.
+- **Last 4 bytes** of preset (`01 00 00 00` at 0x2000) may be a format marker — do not modify.
+- **Channel UUID** (12 bytes at +0x54 in each channel record) is random on each save, likely used for diff detection or RNG seeding. Preserve when editing.
+
+---
+
+## Known Field Relabels
+
+These offsets were previously mislabeled; corpus analysis across 87 files identified the errors:
 
 | Offset | Old Label | Correct Label | How Found |
 |--------|-----------|---------------|-----------|
@@ -216,42 +165,3 @@ These were previously mislabeled; corpus analysis across 87 files revealed the e
 | 0x0340 | COMP_UNK  | HUMA          | User: COMP is signed, this shows 0–100 (non-negative) |
 | 0x07C0 | AUX2      | QUAN          | Constant=12 across 87 files; AUX2 should vary (it does, at 0x00C0) |
 | 0x0A00 | (evolve)  | AUX1          | v1/v2/v3 all show AUX mode indices per step here |
-
----
-
-## How to Contribute
-
-The diff tool makes reverse-engineering straightforward:
-
-1. Load a preset on your FLUX
-2. Change exactly **one parameter**
-3. Save the preset to SD card
-4. Copy the new `.TXT` to your computer
-5. Run: `python3 flux_editor.py diff OLD.TXT NEW.TXT`
-6. Report the offset + value change — this maps the parameter
-
-### High-priority unknowns remaining
-
-| Parameter | Expected range | Why hard |
-|-----------|----------------|----------|
-| COMP      | −99..+99 signed | All-zero in 87 corpus files; user uses it occasionally |
-| DIFF      | always 0 | Never changes; impossible to locate by corpus |
-| CURV      | TM curve type | May default to 1; corpus might show as 1 at 0x00C0 |
-| MASK/MSK> | bitmask       | 0x0100–0x01FF region, structure unclear |
-| ATK/REL/ACUR/RCUR | 0–? | Default=0 or 100; indistinguishable from PROB in corpus |
-| SCAL      | 0–23 (Maj=11) | No block with all-11 default found |
-| Evolve params | various  | 85-param per-channel LFO data; not per-step |
-
----
-
-## File Integrity Notes
-
-- **No checksum or CRC** identified in either format. Files load as-is.
-- **Last 4 bytes** of preset (`01 00 00 00` at 0x2000) may be a format marker — do not modify.
-- **Channel UUID** (12 bytes at +0x54 in each channel record) is random on each save, likely used for diff detection or RNG seeding. Preserve when editing.
-- PREF `02 02 02 02` at bytes 16–19 = SH16 values (all defaulting to 2), confirmed not a checksum.
-
----
-
-*Reverse-engineered by the FLUX community, 2026. Cross-format corpus analysis: 87 presets across v1/v2/v3 formats.*
-*Contribute: compare before/after saves using the diff tool.*

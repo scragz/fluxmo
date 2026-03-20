@@ -1,8 +1,9 @@
-# fluxmo
+# FLUXMO
 
 Community tool for parsing, displaying, diffing, and editing FLUX by IOLabs preset files.
 
-See [`format_map.md`](format_map.md) for the full reverse-engineered binary format documentation.
+See [`docs/preset-format.md`](docs/preset-format.md) for the reverse-engineered preset binary format.
+See [`docs/pref-format.md`](docs/pref-format.md) for the PREF (persistent config) binary format.
 See [`docs/json-format.md`](docs/json-format.md) for the JSON format accepted by the preset builder.
 
 ---
@@ -144,13 +145,14 @@ AUX mode index list.
 ## Project layout
 
 ```
-main.py                  CLI entry point
-docs/json-format.md      JSON input format for new preset creation
+main.py                      CLI entry point
+docs/preset-format.md        Reverse-engineered FLUX/*.TXT binary format
+docs/pref-format.md          Reverse-engineered PREF*.TXT binary format
+docs/json-format.md          JSON input format for the preset builder
 src/fluxmo/
-  pref.py                FluxPrefs — PREF*.TXT parser/serializer
-  preset.py              FluxPreset — preset .TXT parser/serializer + format constants
-  diff.py                diff_presets, hexdump utilities
-format_map.md            Full reverse-engineered format documentation
+  pref.py                    FluxPrefs — PREF*.TXT parser/serializer
+  preset.py                  FluxPreset — preset .TXT parser/serializer + format constants
+  diff.py                    diff_presets, hexdump utilities
 ```
 
 ---

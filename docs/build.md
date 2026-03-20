@@ -1,4 +1,4 @@
-# FLUX Preset JSON Format
+# FLUXMO Build Preset JSON Format
 
 This document defines the JSON input accepted by:
 
