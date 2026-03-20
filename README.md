@@ -2,7 +2,8 @@
 
 Community tool for parsing, displaying, diffing, and editing FLUX by IOLabs preset files.
 
-See `format_map.md` for the full reverse-engineered binary format documentation.
+See [`format_map.md`](format_map.md) for the full reverse-engineered binary format documentation.
+See [`docs/json-format.md`](docs/json-format.md) for the JSON format accepted by the preset builder.
 
 ---
 
@@ -108,6 +109,19 @@ python3 main.py set DEFAULT_.TXT dens 1 3 8 out.TXT
 
 Sets trigger density to 8 on CH1, step 3, writing to `out.TXT`.
 
+#### `build` — create a new preset from JSON
+
+```
+python3 main.py build <preset.json> <out.TXT>
+```
+
+Builds a brand-new v3 preset binary from structured JSON. Missing channels and
+steps are filled with defaults, and invalid JSON paths are rejected with a
+specific validation error.
+
+The full JSON schema, merge rules, aliases, and examples live in
+[`docs/json-format.md`](docs/json-format.md).
+
 #### `hex` — hexdump a region
 
 ```
@@ -131,6 +145,7 @@ AUX mode index list.
 
 ```
 main.py                  CLI entry point
+docs/json-format.md      JSON input format for new preset creation
 src/fluxmo/
   pref.py                FluxPrefs — PREF*.TXT parser/serializer
   preset.py              FluxPreset — preset .TXT parser/serializer + format constants

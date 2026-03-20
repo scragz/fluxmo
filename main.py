@@ -11,6 +11,7 @@ Usage:
   python3 main.py step   <file.TXT> <ch> <step>
   python3 main.py diff   <A.TXT> <B.TXT>
   python3 main.py set    <file.TXT> <param> <ch> <step> <value> [out.TXT]
+  python3 main.py build  <preset.json> <out.TXT>
   python3 main.py hex    <file.TXT> [offset] [length]
   python3 main.py map
 """
@@ -19,7 +20,7 @@ import os
 import sys
 
 from src.fluxmo.pref import FluxPrefs
-from src.fluxmo.preset import FluxPreset, AUX_MODES, STEP_ARRAYS_U8, OFFSET_PHAS, OFFSET_MINV, OFFSET_MAXV, OFFSET_FREQ, OFFSET_CH_RECORDS, CH_RECORD_SIZE, CH_PPQN_IDX, CH_VELO_IDX, CH_SH16_IDX, CH_BPM_IDX
+from src.fluxmo.preset import FluxPreset, AUX_MODES, STEP_ARRAYS_U8, STEP_PARAM_SPECS, OFFSET_PHAS, OFFSET_MINV, OFFSET_MAXV, OFFSET_FREQ, OFFSET_CH_RECORDS, CH_RECORD_SIZE, CH_PPQN_IDX, CH_VELO_IDX, CH_SH16_IDX, CH_BPM_IDX
 from src.fluxmo.diff import diff_presets, hexdump
 
 
@@ -32,6 +33,7 @@ Usage:
   python3 main.py step   <file.TXT> <ch> <s>  Show single step (ch=1-4, s=1-16)
   python3 main.py diff   <A.TXT> <B.TXT>      Diff two files (byte-level)
   python3 main.py set    <file.TXT> <param> <ch> <step> <value> [out.TXT]
+  python3 main.py build  <preset.json> <out.TXT>  Build a fresh preset from JSON
   python3 main.py hex    <file.TXT> [offset] [length]  Hexdump region
   python3 main.py map                          Print parameter offset map
 
@@ -53,25 +55,7 @@ Editable parameters (confirmed/likely):
 """
 
 # Maps CLI param name → (FluxPreset attribute, type)
-SET_PARAMS = {
-    'loop':     ('loop',     'u8'),    # LIKELY — loop length (1-16, default=1)
-    'gate':     ('gate',     'u8'),    # LIKELY — trigger length (0-99%, default=10)
-    'dens':     ('dens',     'u8'),    # CONFIRMED — trigger density 0-64
-    'leng':     ('leng',     'u8'),    # CONFIRMED
-    'aux1':     ('aux1',     'u8'),    # LIKELY — AUX output 1 mode (0x0A00)
-    'aux2':     ('aux2',     'u8'),    # LIKELY — AUX output 2 mode (0x00C0)
-    'huma':     ('huma',     'u8'),    # LIKELY — humanize 0-127
-    'phas':     ('phas',     'u16'),   # CONFIRMED — phase degrees 0-360
-    'cvsel':    ('cvsel',    'u8'),    # UNCERTAIN — LFO CV source 0-9
-    'sync':     ('sync',     'u8'),    # UNCERTAIN — LFO sync mode 0-4
-    'mod_bus':  ('mod_bus',  'u8'),    # CONFIRMED
-    's_h':      ('s_h',      'u8'),    # UNCERTAIN — sample & hold 0/1
-    'prob_val': ('prob_val', 'u8'),    # LIKELY — probability 0-100
-    'minv':     ('minv',     'i16'),   # LIKELY — min CV mV (signed)
-    'maxv':     ('maxv',     'u16'),   # CONFIRMED — max CV mV
-    'quan':     ('quan',     'u8'),    # LIKELY — quantizer semitones (default=12)
-    'freq':     ('freq',     'f32'),   # CONFIRMED — LFO freq Hz
-}
+SET_PARAMS = {name: (spec.attr, spec.value_type) for name, spec in STEP_PARAM_SPECS.items()}
 
 
 def cmd_show(path):
@@ -111,6 +95,16 @@ def cmd_set(path, param, ch_s, step_s, val_s, out_path=None):
     out = out_path or path
     p.save(out)
     print(f"Set {param} ch{ch+1} step{step+1} = {val}  →  saved to {out}")
+
+
+def cmd_build(json_path, out_path):
+    try:
+        p = FluxPreset.from_json_file(json_path)
+    except ValueError as exc:
+        print(f"Preset JSON error: {exc}")
+        return
+    p.save(out_path)
+    print(f"Built preset from {json_path}  →  saved to {out_path}")
 
 
 def cmd_hex(path, offset_s='0', length_s='256'):
@@ -161,6 +155,8 @@ def main():
     elif cmd == 'set' and len(sys.argv) >= 7:
         out = sys.argv[7] if len(sys.argv) >= 8 else None
         cmd_set(sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], out)
+    elif cmd == 'build' and len(sys.argv) >= 4:
+        cmd_build(sys.argv[2], sys.argv[3])
     elif cmd == 'hex' and len(sys.argv) >= 3:
         offs = sys.argv[3] if len(sys.argv) >= 4 else '0'
         leng = sys.argv[4] if len(sys.argv) >= 5 else '256'
