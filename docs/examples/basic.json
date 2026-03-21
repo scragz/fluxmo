@@ -1,0 +1,36 @@
+{
+  "channel_defaults": {
+    "bpm": 120,
+    "ppqn": 4,
+    "velo": 110,
+    "sh16": 2
+  },
+  "step_defaults": {
+    "gate": 35,
+    "leng": 1,
+    "mod_bus": "Y+G",
+    "aux1": "ON",
+    "aux2": "OFF",
+    "minv": 0,
+    "maxv": 5000,
+    "freq": 1.0,
+    "quan": 12
+  },
+  "channels": [
+    {
+      "steps": [
+        { "dens": 8, "prob": 100 },
+        { "dens": 4, "phas": 90 },
+        { "dens": 2, "phas_deg": 180, "aux1": "TL4" }
+      ]
+    },
+    {
+      "velo": 127,
+      "steps": [
+        { "dens": 1, "mod": "P" },
+        null,
+        { "dens": 6, "mod_bus": "Y+P", "freq_hz": 0.5 }
+      ]
+    }
+  ]
+}

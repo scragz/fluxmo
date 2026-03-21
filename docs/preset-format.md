@@ -27,9 +27,9 @@ Slot 0 = CH1/S1, slot 1 = CH1/S2, ..., slot 16 = CH2/S1, etc.
 | Range           | Size  | Description |
 |-----------------|-------|-------------|
 | 0x0000–0x07FF   | 2048B | Per-step parameter arrays, Section A (RHYTHMS page params) |
-| 0x0800–0x1B7F   | 5504B | Per-step Section B (AUX1, LFO page params) + Evolve data |
-| 0x1B80–0x1D7F   | 512B  | Per-channel configuration records (4 × 128 bytes) |
-| 0x1D80–0x2003   | 132B  | Additional state / trailing data |
+| 0x0800–0x1B7F   | 4992B | Per-step Section B (AUX1, LFO page params) + Evolve data; 178 bytes required non-zero |
+| 0x1B80–0x1D7F   | 512B  | Per-channel configuration records (4 × 128 bytes); several sentinel fields required non-zero |
+| 0x1D80–0x2003   | 644B  | Trailing data; must be populated (constant block). Device rejects file if zeros. |
 
 ---
 
@@ -99,6 +99,25 @@ A second set of per-step parameters begins at 0x0800. Structure less mapped than
 - 0x0FB0 region: 16-byte groups of 0x02. Possibly SH16 per step.
 - Full Evolve structure (85 params × 4 channels) not yet decoded.
 
+**Required non-zero bytes in Section B:**
+
+178 bytes in Section B are constant across all 31 corpus presets and must be present for the firmware to load the file without hanging. They are scattered through the LFO/Macro region. Key clusters:
+
+| Range           | Value | Count | Notes |
+|-----------------|-------|-------|-------|
+| 0x0A7C–0x0AEB   | 0x01  | 16    | Sparse groups of 4 in 0x0A00 block |
+| 0x0B0C–0x0BBF   | 0x01  | 20    | Sparse groups of 4 across 0x0B00 block |
+| 0x0C5C–0x0C9B   | 0x01  | 16    | Sparse groups of 4 in 0x0C00 block |
+| 0x0C48          | 0xF0  | 1     | |
+| 0x0DFC          | 0x02  | 1     | |
+| 0x0EA0–0x0EDF   | 0xC8  | 64    | 200 (possibly Evolve pot default) |
+| 0x0EE0–0x0EEE   | various | 6   | 0x2B, 0x1D, 0x02 |
+| 0x0FB1–0x0FF3   | 0x02  | 63    | Dense block, some gaps |
+| 0x18B4–0x18BA   | 0x01  | 4     | Sparse |
+| 0x1B7C–0x1B7E   | 0xC8  | 2     | |
+
+These are encoded as `SECTION_B_REQUIRED` in `src/fluxmo/preset.py` and applied in `_default_raw()`. Any preset built by the script will have them correctly initialized.
+
 ---
 
 ## Section 3: Per-Channel Records, 0x1B80
@@ -107,21 +126,55 @@ A second set of per-step parameters begins at 0x0800. Structure less mapped than
 
 **Confirmed fields (as uint16 LE index within each 128-byte record):**
 
-| uint16 idx | Byte offset | Field  | Default | Certainty |
-|-----------|------------|--------|---------|-----------|
-| 19        | +0x26      | PPQN   | 4       | CONFIRMED |
-| 21        | +0x2A      | VELO   | 127     | CONFIRMED |
-| 49        | +0x62      | SH16   | 2       | CONFIRMED |
-| 60        | +0x78      | BPM    | 120     | LIKELY    |
-| 10–11     | +0x14      | RNG seed | varies | CONFIRMED |
-| 42–47     | +0x54      | Channel UUID | 12 random bytes | CONFIRMED |
+| uint16 idx | Byte offset | Field        | Default | Certainty | Notes |
+|-----------|------------|--------------|---------|-----------|-------|
+| 0         | +0x00      | (required)   | 1       | CONFIRMED | Must be 1. Device hangs on boot if 0. |
+| 1         | +0x02      | (required)   | 1       | CONFIRMED | Must be 1. Device hangs on boot if 0. |
+| 2         | +0x04      | (required)   | 1       | CONFIRMED | Must be 1. Device hangs on boot if 0. |
+| 3         | +0x06      | (unknown)    | 8       | UNCERTAIN | Constant across all corpus presets. |
+| 4         | +0x08      | (unknown)    | 10      | UNCERTAIN | Constant. |
+| 5         | +0x0A      | (unknown)    | 99      | UNCERTAIN | Constant. |
+| 6         | +0x0C      | (required)   | 1       | CONFIRMED | Must be 1. Device hangs on boot if 0. |
+| 7         | +0x0E      | (unknown)    | 64      | UNCERTAIN | Constant. |
+| 8         | +0x10      | (required)   | 1       | CONFIRMED | Must be 1. Device hangs on boot if 0. |
+| 9         | +0x12      | (unknown)    | 58      | UNCERTAIN | Constant. |
+| 12        | +0x18      | (unknown)    | 0xFF9C (−100 i16) | UNCERTAIN | Constant. |
+| 13        | +0x1A      | (unknown)    | 100     | UNCERTAIN | Constant. |
+| 15        | +0x1E      | (unknown)    | 45      | UNCERTAIN | Constant. |
+| 16        | +0x20      | (unknown)    | 0xFF9C (−100 i16) | UNCERTAIN | Constant. |
+| 17        | +0x22      | (unknown)    | 99      | UNCERTAIN | Constant. |
+| 18        | +0x24      | (required)   | 1       | CONFIRMED | Must be 1. Device hangs on boot if 0. |
+| 19        | +0x26      | PPQN         | 4       | CONFIRMED | |
+| 21        | +0x2A      | VELO         | 127     | CONFIRMED | |
+| 23        | +0x2E      | (unknown)    | 17      | UNCERTAIN | Constant. |
+| 25        | +0x32      | (unknown)    | 64      | UNCERTAIN | Constant. |
+| 27        | +0x36      | (unknown)    | 182     | UNCERTAIN | Constant. |
+| 29        | +0x3A      | (unknown)    | 182     | UNCERTAIN | Constant. |
+| 31        | +0x3E      | (unknown)    | 5       | UNCERTAIN | Constant. |
+| 33        | +0x42      | (required)   | 1       | UNCERTAIN | Constant across all corpus presets. |
+| 35        | +0x46      | (unknown)    | 8000    | UNCERTAIN | Constant. |
+| 37        | +0x4A      | (unknown)    | 8000    | UNCERTAIN | Constant. |
+| 39        | +0x4E      | (unknown)    | 100     | UNCERTAIN | Constant. |
+| 41        | +0x52      | (unknown)    | 100     | UNCERTAIN | Constant. |
+| 49        | +0x62      | SH16         | 2       | CONFIRMED | |
+| 51        | +0x66      | (unknown)    | 24      | UNCERTAIN | Constant. |
+| 53        | +0x6A      | (unknown)    | 24      | UNCERTAIN | Constant. |
+| 55        | +0x6E      | (unknown)    | 304     | UNCERTAIN | Constant (0x0130 LE). |
+| 57        | +0x72      | (unknown)    | 304     | UNCERTAIN | Constant. |
+| 59        | +0x76      | (unknown)    | 304     | UNCERTAIN | Constant. |
+| 60        | +0x78      | BPM          | 120     | LIKELY    | |
+| 61        | +0x7A      | (unknown)    | 360     | UNCERTAIN | Constant (0x0168 LE). |
+| 62        | +0x7C      | (unknown)    | 200     | UNCERTAIN | Constant. |
+| 63        | +0x7E      | (unknown)    | 200     | UNCERTAIN | Constant. |
 
-**Uncertain fields (constant across all presets and all channels):**
-```
-[3]=8  [4]=10  [5]=99  [7]=64  [9]=58
-[13]=100  [15]=45  [17]=99  [23]=17  [25]=64
-[35]=8000  [37]=8000  [39]=100  [41]=100
-```
+**Random/unique fields:**
+
+| Byte offset | Size | Field        | Notes |
+|------------|------|--------------|-------|
+| +0x14      | 4    | RNG seed     | 4 random bytes, regenerated on each save. |
+| +0x54      | 12   | Channel UUID | 12 random bytes, regenerated on each save. |
+
+> **Firmware hang warning:** Indices 0, 1, 2, 6, 8, 18 in each channel record must be `01 00`. The device boots to a hung state (blank screen, unresponsive) if any of these are zero. This affects all 4 channel records. Manually-authored presets that omit these fields will cause a hang even if the rest of the file is valid.
 
 ---
 
@@ -147,8 +200,11 @@ AUX1 and AUX2 each store one of these indices per step (uint8, 0-indexed):
 ## File Integrity Notes
 
 - **No checksum or CRC** identified. Files load as-is.
-- **Last 4 bytes** of preset (`01 00 00 00` at 0x2000) may be a format marker — do not modify.
+- **Trailing section (0x1D80–0x2003, 644 bytes)** must be present and populated. Device rejects files where this region is all zeros, or loads factory defaults instead. The section terminates with `01 00 00 00` at 0x2000. All 644 bytes are constant across 30/31 corpus presets and are treated as a required initialization block. See `REFERENCE_TRAILING` in `src/fluxmo/preset.py`.
+- **Section B (0x0800–0x1B7F)** contains 178 bytes that must be non-zero for the firmware to accept the file. See `SECTION_B_REQUIRED` in `src/fluxmo/preset.py`.
+- **Channel record sentinel fields** (uint16 indices 0, 1, 2, 6, 8, 18 in each of the 4 channel records) must equal `01 00`. Zero in any of these causes a firmware hang on boot.
 - **Channel UUID** (12 bytes at +0x54 in each channel record) is random on each save, likely used for diff detection or RNG seeding. Preserve when editing.
+- **Building presets:** Always use the build script (`FluxPreset.from_json_file()`). Manually constructing a preset binary from scratch requires getting all three of the above constraints right; the build script handles all of them via `_default_raw()`.
 
 ---
 

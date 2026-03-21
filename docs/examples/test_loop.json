@@ -1,0 +1,46 @@
+{
+  "channel_defaults": {
+    "bpm": 120,
+    "ppqn": 4,
+    "velo": 127,
+    "sh16": 2
+  },
+  "step_defaults": {
+    "gate": 35,
+    "leng": 1,
+    "dens": 1
+  },
+  "channels": [
+    {
+      "steps": [
+        { "loop": 7 },
+        { "loop": 7 },
+        { "loop": 7 },
+        { "loop": 7 },
+        { "loop": 7 },
+        { "loop": 7 },
+        { "loop": 7 }
+      ]
+    },
+    {
+      "steps": [
+        { "loop": 7 },
+        { "loop": 7 },
+        { "loop": 7 },
+        { "loop": 7 },
+        { "loop": 7 },
+        { "loop": 7 },
+        { "loop": 7 }
+      ]
+    },
+    {
+      "steps": [
+        { "loop": 4 },
+        { "loop": 4 },
+        { "loop": 4 },
+        { "loop": 4 }
+      ]
+    },
+    {}
+  ]
+}
