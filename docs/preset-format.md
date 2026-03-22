@@ -18,9 +18,10 @@ The sequencer has **4 channels × 16 steps = 64 step slots**.
 
 All per-step parameters use a flat array of 64 values:
 ```
-slot = channel_index * 16 + step_index   (both 0-indexed)
+slot = step_index * 4 + channel_index   (both 0-indexed)
 ```
-Slot 0 = CH1/S1, slot 1 = CH1/S2, ..., slot 16 = CH2/S1, etc.
+Slot 0 = CH1/S1, slot 1 = CH2/S1, slot 2 = CH3/S1, slot 3 = CH4/S1,
+slot 4 = CH1/S2, etc.
 
 ### Section Map
 

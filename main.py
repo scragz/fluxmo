@@ -127,6 +127,7 @@ def cmd_map():
     print("=== FLUX Preset Parameter Offset Map ===")
     print()
     print("Per-step arrays (64 entries each = 4ch × 16 steps):")
+    print("  Slot order: step-major (CH1/S1, CH2/S1, CH3/S1, CH4/S1, CH1/S2, ...)")
     print(f"  {'Offset':>8}  {'Size':>5}  {'Param':<12}  Certainty")
     print(f"  {'------':>8}  {'----':>5}  {'-----':<12}  ---------")
     for off, (name, cert) in sorted(STEP_ARRAYS_U8.items()):

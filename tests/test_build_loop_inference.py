@@ -101,6 +101,20 @@ class BuildLoopInferenceTests(unittest.TestCase):
         self.assertEqual(raw[0x1CA6:0x1CA8], bytes([4, 0]))
         self.assertEqual(raw[0x1D26:0x1D28], bytes([4, 0]))
 
+    def test_step_arrays_are_serialized_step_major(self):
+        preset = FluxPreset.from_dict({
+            'step_defaults': {'dens': 0, 'leng': 1},
+            'channels': [
+                {'steps': [{'dens': 1, 'leng': 4}, None, {'dens': 2, 'leng': 6}]},
+                {'steps': [None, {'dens': 3, 'leng': 8}]},
+            ],
+        })
+
+        raw = preset.to_bytes()
+
+        self.assertEqual(list(raw[0x0200:0x020C]), [1, 0, 0, 0, 0, 3, 0, 0, 2, 0, 0, 0])
+        self.assertEqual(list(raw[0x0080:0x008C]), [4, 1, 1, 1, 1, 8, 1, 1, 6, 1, 1, 1])
+
 
 if __name__ == '__main__':
     unittest.main()

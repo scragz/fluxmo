@@ -55,28 +55,29 @@ def _offset_note(off: int) -> str:
     """Return a human-readable note about what lives at this offset, if known."""
     for array_off, (name, cert) in STEP_ARRAYS_U8.items():
         if array_off <= off < array_off + 64:
-            ch   = (off - array_off) // 16
-            step = (off - array_off) % 16
+            idx = off - array_off
+            step = idx // 4
+            ch = idx % 4
             return f"{name} [ch{ch+1} step{step+1}] ({cert})"
 
     if 0x0380 <= off < 0x0400:
         idx = (off - 0x0380) // 2
-        ch, step = idx // 16, idx % 16
+        step, ch = idx // 4, idx % 4
         return f"PHAS_deg [ch{ch+1} step{step+1}] (CONFIRMED uint16)"
 
     if 0x0500 <= off < 0x0580:
         idx = (off - 0x0500) // 2
-        ch, step = idx // 16, idx % 16
+        step, ch = idx // 4, idx % 4
         return f"MINV_mV [ch{ch+1} step{step+1}] (LIKELY int16)"
 
     if 0x0580 <= off < 0x0600:
         idx = (off - 0x0580) // 2
-        ch, step = idx // 16, idx % 16
+        step, ch = idx // 4, idx % 4
         return f"MAXV_mV [ch{ch+1} step{step+1}] (CONFIRMED)"
 
     if 0x0680 <= off < 0x0780:
         idx = (off - 0x0680) // 4
-        ch, step = idx // 16, idx % 16
+        step, ch = idx // 4, idx % 4
         return f"FREQ_Hz [ch{ch+1} step{step+1}] (CONFIRMED)"
 
     if 0x0800 <= off < 0x1B80:

@@ -2,7 +2,7 @@
 FluxPreset — parser for FLUX/*.TXT preset files (~8196 bytes).
 
 The sequencer has 4 channels × 16 steps = 64 step slots.
-Step addressing: slot = channel * 16 + step  (both 0-indexed)
+Step addressing: slot = step * 4 + channel  (both 0-indexed)
 
 Data is stored in parallel arrays (not interleaved per step):
   Section 0x0000–0x07FF: Per-step parameter arrays (uint8 or uint16/float32)
@@ -83,7 +83,7 @@ class ParamSpec:
 # ---------------------------------------------------------------------------
 
 # Per-step parameter arrays: each is 64 bytes (4ch × 16 steps).
-# Step index = channel * 16 + step (0-indexed).
+# Step index = step * 4 + channel (0-indexed).
 # All offsets are for the start of the 64-byte array.
 
 STEP_ARRAYS_U8 = {
@@ -421,7 +421,7 @@ class FluxPreset:
     Parses FLUX/*.TXT preset files (~8196 bytes).
 
     The file contains 64 step slots (4 channels × 16 steps).
-    Step addressing: slot = channel * 16 + step  (both 0-indexed)
+    Step addressing: slot = step * 4 + channel  (both 0-indexed)
     """
 
     EXPECTED_SIZE = 8196
@@ -600,7 +600,7 @@ class FluxPreset:
 
     def _slot(self, ch: int, step: int) -> int:
         """Linear index for channel/step combo."""
-        return ch * STEPS_PER_CHANNEL + step
+        return step * CHANNEL_COUNT + ch
 
     def _normalize_values(
         self,
