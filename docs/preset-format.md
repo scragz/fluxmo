@@ -144,7 +144,7 @@ These are encoded as `SECTION_B_REQUIRED` in `src/fluxmo/preset.py` and applied 
 | 16        | +0x20      | (unknown)    | 0xFF9C (−100 i16) | UNCERTAIN | Constant. |
 | 17        | +0x22      | (unknown)    | 99      | UNCERTAIN | Constant. |
 | 18        | +0x24      | (required)   | 1       | CONFIRMED | Must be 1. Device hangs on boot if 0. |
-| 19        | +0x26      | CURV         | 4       | CONFIRMED | Curve selector, NOT PPQN. Enumerated display values: 1, 2.0–2.5, 3.0–3.5…8.0, then NN variants. PPQN is a global setting in the PREF file — there is no per-channel PPQN in preset files. |
+| 19        | +0x26      | CURV         | 4       | CONFIRMED | Curve selector. Enumerated display values: 1, 2.0–2.5, 3.0–3.5…8.0, then NN variants. |
 | 21        | +0x2A      | VELO         | 127     | CONFIRMED | |
 | 23        | +0x2E      | (unknown)    | 17      | UNCERTAIN | Constant. |
 | 25        | +0x32      | (unknown)    | 64      | UNCERTAIN | Constant. |
@@ -205,19 +205,3 @@ AUX1 and AUX2 each store one of these indices per step (uint8, 0-indexed):
 - **Channel record sentinel fields** (uint16 indices 0, 1, 2, 6, 8, 18 in each of the 4 channel records) must equal `01 00`. Zero in any of these causes a firmware hang on boot.
 - **Channel UUID** (12 bytes at +0x54 in each channel record) is random on each save, likely used for diff detection or RNG seeding. Preserve when editing.
 - **Building presets:** Always use the build script (`FluxPreset.from_json_file()`). Manually constructing a preset binary from scratch requires getting all three of the above constraints right; the build script handles all of them via `_default_raw()`.
-
----
-
-## Known Field Relabels
-
-These offsets were previously mislabeled; corpus analysis across 87 files identified the errors:
-
-| Offset | Old Label | Correct Label | How Found |
-|--------|-----------|---------------|-----------|
-| 0x0000 | DENS      | LOOP          | Diff test showed it's always 1 (loop length) |
-| 0x0040 | AUX1      | GATE          | User confirmed: gate default=10, values 10–90 are trigger % |
-| 0x00C0 | CURV      | AUX2          | v1/v2 presets show DEL2/TL1/SOS per step here |
-| 0x0200 | GATE/LOOP | DENS          | User confirmed: trigger density 0–64 |
-| 0x0340 | COMP_UNK  | HUMA          | User: COMP is signed, this shows 0–100 (non-negative) |
-| 0x07C0 | AUX2      | QUAN          | Constant=12 across 87 files; AUX2 should vary (it does, at 0x00C0) |
-| 0x0A00 | (evolve)  | AUX1          | v1/v2/v3 all show AUX mode indices per step here |

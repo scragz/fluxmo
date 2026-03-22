@@ -68,5 +68,5 @@ Bytes 2–3 identify the format version.
 ## Notes
 
 - `sh16` values at bytes 16–19 (`02 02 02 02` for defaults) are SH16 per-channel values, confirmed not a checksum.
-- The extended block added in v1.08 (offset 46+, up to 262 bytes total) is mostly zeros and its structure is not decoded. Writing preset filenames or other data there has no observed effect on boot behavior.
+- The extended block added in v1.08 (offset 46+, up to 262 bytes total) is mostly zeros and its structure is not decoded.
 - BPM is stored per-channel in the preset file (uint16 at ch_record+0x78), not in the PREF file.
