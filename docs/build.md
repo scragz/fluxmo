@@ -20,6 +20,7 @@ The JSON format is built around a few constraints:
 - A FLUX preset always has exactly `4` channels.
 - Each channel can define `0` to `16` step objects.
 - Missing channels and missing steps are filled with defaults.
+- A non-empty `channels[n].steps` array infers that channel's loop length from the array length unless `loop` was set explicitly.
 - Shared values can be factored into `channel_defaults` and `step_defaults` to avoid repetition.
 - Only fields currently supported by the parser/serializer are accepted.
 - Invalid keys, wrong types, or out-of-range values fail fast with a path-specific error.
@@ -95,6 +96,7 @@ Preset creation happens in this order:
 3. Apply `step_defaults` to all 64 step slots.
 4. Apply each channel object in `channels`.
 5. Apply each step object in `channels[n].steps`.
+6. If `channels[n].steps` is non-empty and `loop` was not provided via `step_defaults` or a step object, set that channel's loop length to `len(channels[n].steps)`.
 
 Later values override earlier values.
 
@@ -103,6 +105,7 @@ That means:
 - `step_defaults.gate` sets the gate for every step in every channel.
 - `channels[1].velo` overrides only channel 2 velocity.
 - `channels[1].steps[3].gate` overrides only channel 2, step 4.
+- `channels[1].steps` with 8 entries implies loop length 8 for channel 2 unless `loop` was set explicitly.
 
 ## Arrays and Indexing
 
@@ -131,6 +134,10 @@ Each entry may be:
 
 If the array is shorter than 16, omitted steps keep defaults.
 
+If the array is non-empty and no explicit `loop` was provided for that channel, the
+builder infers the channel loop length from the array length. For example, an 8-entry
+`steps` array produces loop length `8`.
+
 Each entry may be:
 
 - an object
@@ -153,7 +160,7 @@ These fields are accepted in `step_defaults` and in each step object.
 
 | Key | Type | Range | Default | Aliases | Notes |
 |-----|------|-------|---------|---------|-------|
-| `loop` | integer | `1..16` | `1` | — | Loop length. |
+| `loop` | integer | `1..16` | `1` | — | Loop length. If omitted, a non-empty `channels[n].steps` array infers the channel loop length from its entry count. |
 | `gate` | integer | `0..99` | `10` | `gate%` | Trigger length percent. |
 | `dens` | integer | `0..64` | `1` | — | Trigger density. |
 | `leng` | integer | `0..16` | `1` | — | Step length. |

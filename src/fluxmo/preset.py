@@ -346,6 +346,16 @@ def _normalize_key(key: str) -> str:
     return key.strip().lower().replace(' ', '_').replace('-', '_')
 
 
+def _has_explicit_field(values, aliases: dict[str, str], canonical: str) -> bool:
+    if not isinstance(values, dict):
+        return False
+
+    for raw_key in values:
+        if isinstance(raw_key, str) and aliases.get(_normalize_key(raw_key)) == canonical:
+            return True
+    return False
+
+
 def _parse_aux_mode(value):
     if isinstance(value, str):
         lookup = _normalize_key(value)
@@ -480,6 +490,7 @@ class FluxPreset:
 
         preset = cls()
 
+        step_defaults_data = data.get('step_defaults')
         channel_defaults = preset._normalize_values(
             data.get('channel_defaults'),
             CHANNEL_PARAM_SPECS,
@@ -491,10 +502,15 @@ class FluxPreset:
                 preset._set_channel_value(ch, key, value, f'channel_defaults.{key}')
 
         step_defaults = preset._normalize_values(
-            data.get('step_defaults'),
+            step_defaults_data,
             STEP_PARAM_SPECS,
             STEP_PARAM_ALIASES,
             'step_defaults',
+        )
+        step_defaults_sets_loop = _has_explicit_field(
+            step_defaults_data,
+            STEP_PARAM_ALIASES,
+            'loop',
         )
         for ch in range(CHANNEL_COUNT):
             for step in range(STEPS_PER_CHANNEL):
@@ -532,11 +548,14 @@ class FluxPreset:
                     f"channels[{ch}].steps can contain at most {STEPS_PER_CHANNEL} entries."
                 )
 
+            explicit_loop_steps = set()
             for step, step_data in enumerate(steps):
                 if step_data is None:
                     continue
                 if not isinstance(step_data, dict):
                     raise ValueError(f"channels[{ch}].steps[{step}] must be an object.")
+                if _has_explicit_field(step_data, STEP_PARAM_ALIASES, 'loop'):
+                    explicit_loop_steps.add(step)
                 for key, value in preset._normalize_values(
                     step_data,
                     STEP_PARAM_SPECS,
@@ -550,6 +569,13 @@ class FluxPreset:
                         value,
                         f'channels[{ch}].steps[{step}].{key}',
                     )
+
+            if steps and not step_defaults_sets_loop:
+                inferred_loop = len(steps)
+                for step in range(STEPS_PER_CHANNEL):
+                    if step in explicit_loop_steps:
+                        continue
+                    preset.loop[ch][step] = inferred_loop
 
         return preset
 
