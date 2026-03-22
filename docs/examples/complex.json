@@ -1,0 +1,62 @@
+{
+  "channel_defaults": {
+    "bpm": 120,
+    "velo": 100,
+    "sh16": 2
+  },
+  "channels": [
+    {
+      "steps": [
+        { "dens": 8, "gate": 20, "leng": 1, "prob_val": 100 },
+        { "dens": 1, "gate": 5,  "leng": 1, "prob_val": 60  },
+        { "dens": 4, "gate": 20, "leng": 1, "prob_val": 100 },
+        { "dens": 1, "gate": 5,  "leng": 1, "prob_val": 40  },
+        { "dens": 8, "gate": 20, "leng": 1, "prob_val": 100 },
+        { "dens": 2, "gate": 5,  "leng": 1, "prob_val": 80  },
+        { "dens": 4, "gate": 20, "leng": 1, "prob_val": 100 },
+        { "dens": 1, "gate": 5,  "leng": 1, "prob_val": 50  },
+        { "dens": 8, "gate": 20, "leng": 1, "prob_val": 100 },
+        { "dens": 1, "gate": 5,  "leng": 1, "prob_val": 60  },
+        { "dens": 4, "gate": 20, "leng": 1, "prob_val": 100 },
+        { "dens": 2, "gate": 5,  "leng": 1, "prob_val": 70  },
+        { "dens": 8, "gate": 20, "leng": 1, "prob_val": 100 },
+        { "dens": 1, "gate": 5,  "leng": 1, "prob_val": 40  },
+        { "dens": 4, "gate": 20, "leng": 1, "prob_val": 100 },
+        { "dens": 2, "gate": 30, "leng": 2, "prob_val": 100 }
+      ]
+    },
+    {
+      "steps": [
+        { "dens": 6, "gate": 15, "phas": 180, "mod_bus": "Y+P" },
+        { "dens": 2, "gate": 10, "phas": 0,   "mod_bus": "Y"   },
+        { "dens": 6, "gate": 15, "phas": 270, "mod_bus": "Y+P" },
+        { "dens": 1, "gate": 10, "phas": 90,  "mod_bus": "Y"   },
+        { "dens": 6, "gate": 15, "phas": 180, "mod_bus": "Y+P" },
+        { "dens": 2, "gate": 10, "phas": 0,   "mod_bus": "Y"   },
+        { "dens": 4, "gate": 20, "phas": 90,  "mod_bus": "Y+G" },
+        { "dens": 1, "gate": 5,  "phas": 270, "mod_bus": "G"   }
+      ]
+    },
+    {
+      "velo": 127,
+      "steps": [
+        { "dens": 4, "gate": 50, "leng": 2, "minv": 0,    "maxv": 0,    "quan": 0 },
+        { "dens": 4, "gate": 50, "leng": 2, "minv": 200,  "maxv": 200,  "quan": 0 },
+        { "dens": 4, "gate": 50, "leng": 2, "minv": 400,  "maxv": 400,  "quan": 0 },
+        { "dens": 4, "gate": 50, "leng": 2, "minv": 500,  "maxv": 500,  "quan": 0 },
+        { "dens": 4, "gate": 50, "leng": 2, "minv": 700,  "maxv": 700,  "quan": 0 },
+        { "dens": 4, "gate": 50, "leng": 2, "minv": 900,  "maxv": 900,  "quan": 0 },
+        { "dens": 4, "gate": 50, "leng": 2, "minv": 1100, "maxv": 1100, "quan": 0 },
+        { "dens": 4, "gate": 50, "leng": 2, "minv": 1200, "maxv": 1200, "quan": 0 }
+      ]
+    },
+    {
+      "steps": [
+        { "dens": 3, "gate": 60, "leng": 4, "prob_val": 100, "mod_bus": "G",   "phas": 0   },
+        { "dens": 1, "gate": 40, "leng": 2, "prob_val": 50,  "mod_bus": "G",   "phas": 90  },
+        { "dens": 2, "gate": 60, "leng": 4, "prob_val": 80,  "mod_bus": "G+P", "phas": 180 },
+        { "dens": 1, "gate": 40, "leng": 2, "prob_val": 30,  "mod_bus": "G",   "phas": 270 }
+      ]
+    }
+  ]
+}
