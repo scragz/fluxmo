@@ -92,6 +92,15 @@ class BuildLoopInferenceTests(unittest.TestCase):
 
         self.assertEqual(preset.leng[0][0], 32)
 
+    def test_new_build_keeps_channel_record_u16_19_at_4(self):
+        preset = FluxPreset.from_dict({'channels': []})
+        raw = preset.to_bytes()
+
+        self.assertEqual(raw[0x1BA6:0x1BA8], bytes([4, 0]))
+        self.assertEqual(raw[0x1C26:0x1C28], bytes([4, 0]))
+        self.assertEqual(raw[0x1CA6:0x1CA8], bytes([4, 0]))
+        self.assertEqual(raw[0x1D26:0x1D28], bytes([4, 0]))
+
 
 if __name__ == '__main__':
     unittest.main()
