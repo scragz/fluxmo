@@ -27,7 +27,7 @@ Slot 0 = CH1/S1, slot 1 = CH1/S2, ..., slot 16 = CH2/S1, etc.
 | Range           | Size  | Description |
 |-----------------|-------|-------------|
 | 0x0000–0x07FF   | 2048B | Per-step parameter arrays, Section A (RHYTHMS page params) |
-| 0x0800–0x1B7F   | 4992B | Per-step Section B (AUX1, LFO page params) + Evolve data; 178 bytes required non-zero |
+| 0x0800–0x1B7F   | 4992B | Section B control bytes + LFO page params + Evolve data; 178 bytes required non-zero |
 | 0x1B80–0x1D7F   | 512B  | Per-channel configuration records (4 × 128 bytes); several sentinel fields required non-zero |
 | 0x1D80–0x2003   | 644B  | Trailing data; must be populated (constant block). Device rejects file if zeros. |
 
@@ -41,7 +41,7 @@ Each entry covers all 64 step slots. Unless noted, each is 64 bytes (1 byte/slot
 
 | Offset        | Bytes/slot | Type      | Param   | Default | Certainty | Notes |
 |---------------|-----------|-----------|---------|---------|-----------|-------|
-| 0x0000        | 1         | uint8     | LOOP    | 1       | LIKELY    | Loop length per step (1–16). Rarely changed. |
+| 0x0000        | 1         | uint8     | LOOP    | 1       | UNCERTAIN | Legacy per-step mirror of loop end. Hardware loop UI does **not** follow this field; current firmware uses the control bytes at `0x0A00..0x0A07`. |
 | 0x0040        | 1         | uint8     | GATE    | 10      | LIKELY    | Trigger length % (0–99). Values 10–90 in corpus. |
 | 0x0080        | 1         | uint8     | LENG    | 1       | CONFIRMED | Step length in 16ths (0–8 stored, 1=1/16). |
 | 0x00C0        | 1         | uint8     | AUX2    | 1 (ON)  | LIKELY    | AUX output 2 mode index (see AUX Mode Table). v1/v2 show full variation; v3 corpus all=1=ON. |
@@ -67,7 +67,7 @@ Each entry covers all 64 step slots. Unless noted, each is 64 bytes (1 byte/slot
 
 | Parameter | Range      | Notes |
 |-----------|------------|-------|
-| AUX1      | 0–119      | Found at 0x0A00 (Section B, see below) |
+| AUX1      | 0–119      | Unlocated | Previously mapped to `0x0A00`, but that block is now identified as loop control. |
 | COMP      | −99..+99   | Signed, used occasionally. Zero in all 87 corpus files. |
 | DIFF      | 0          | Always zero per user. |
 | CURV      | enumerated | **Confirmed** at channel record index 19 (+0x26). Default=4. Display values: 1, 2.0–2.5, 3.0–3.5…8.0, then NN variants. See channel record table above. |
@@ -89,7 +89,9 @@ A second set of per-step parameters begins at 0x0800. Structure less mapped than
 | Offset        | Bytes/slot | Type   | Param | Default     | Certainty | Notes |
 |---------------|-----------|--------|-------|-------------|-----------|-------|
 | 0x0800–0x09FF | —         | —      | (unk) | mostly 0/1  | UNCERTAIN | 8 × 64-byte blocks. Sparse 0/1 values. Function unknown. |
-| 0x0A00        | 1         | uint8  | AUX1  | 1 (ON)      | LIKELY    | AUX output 1 mode index. v1/v2/v3 all show AUX mode indices (DEL3, TL1, 1st, etc.) per step. |
+| 0x0A00–0x0A03 | 1 / channel | uint8 | LOOP_END | 1       | CONFIRMED | Per-channel sequence end. Hardware-correlated examples: `04 04 04 01` = `1-4 / 1-4 / 1-4 / 1`; `04 04 08 04` = `1-4 / 1-4 / 1-8 / 1-4`. |
+| 0x0A04–0x0A07 | 1 / channel | uint8 | LOOP_START | 1     | LIKELY    | Per-channel sequence start. All checked corpus presets use `01 01 01 01` (`1-*` loops). |
+| 0x0A08–0x0A3F | —         | —      | (unk) | mixed 0/1   | UNCERTAIN | Control block, not a flat per-step AUX1 array. Device-saved defaults show zeros with a trailing `01 01 01 01` at `0x0A38..0x0A3B`. |
 | 0x0A40–?      | —         | —      | (unk) | 0/1         | UNCERTAIN | Mostly binary. AUX2 is NOT here — it's at 0x00C0 in Section A. |
 | 0x0C00–0x1B7F | —         | —      | Evolve LFO + Macro Pots | — | UNCERTAIN | Partially decoded. See Evolve notes below. |
 
@@ -180,7 +182,7 @@ These are encoded as `SECTION_B_REQUIRED` in `src/fluxmo/preset.py` and applied 
 
 ## AUX Mode Index Table
 
-AUX1 and AUX2 each store one of these indices per step (uint8, 0-indexed):
+AUX2 stores one of these indices per step (uint8, 0-indexed). AUX1 is still unlocated:
 
 | Index | Name    | Index   | Name         |
 |-------|---------|---------|--------------|

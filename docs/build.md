@@ -20,7 +20,8 @@ The JSON format is built around a few constraints:
 - A FLUX preset always has exactly `4` channels.
 - Each channel can define `0` to `16` step objects.
 - Missing channels and missing steps are filled with defaults.
-- A non-empty `channels[n].steps` array infers that channel's loop length from the array length unless `loop` was set explicitly.
+- A non-empty `channels[n].steps` array infers that channel's loop end from the array length unless `loop` was set explicitly.
+- Loop start/end is stored per channel in the binary. The current JSON builder writes the common `1-N` form only; non-`1` loop starts are not yet exposed in JSON.
 - Shared values can be factored into `channel_defaults` and `step_defaults` to avoid repetition.
 - Only fields currently supported by the parser/serializer are accepted.
 - Invalid keys, wrong types, or out-of-range values fail fast with a path-specific error.
@@ -60,7 +61,6 @@ This produces a fully valid preset using built-in defaults:
     "gate": 35,
     "leng": 1,
     "mod_bus": "Y+G",
-    "aux1": "ON",
     "aux2": "OFF",
     "minv": 0,
     "maxv": 5000,
@@ -72,7 +72,7 @@ This produces a fully valid preset using built-in defaults:
       "steps": [
         { "dens": 8, "prob": 100 },
         { "dens": 4, "phas": 90 },
-        { "dens": 2, "phas_deg": 180, "aux1": "TL4" }
+        { "dens": 2, "phas_deg": 180 }
       ]
     },
     {
@@ -96,7 +96,7 @@ Preset creation happens in this order:
 3. Apply `step_defaults` to all 64 step slots.
 4. Apply each channel object in `channels`.
 5. Apply each step object in `channels[n].steps`.
-6. If `channels[n].steps` is non-empty and `loop` was not provided via `step_defaults` or a step object, set that channel's loop length to `len(channels[n].steps)`.
+6. If `channels[n].steps` is non-empty and `loop` was not provided via `step_defaults` or a step object, set that channel's loop end to `len(channels[n].steps)`.
 
 Later values override earlier values.
 
@@ -105,7 +105,7 @@ That means:
 - `step_defaults.gate` sets the gate for every step in every channel.
 - `channels[1].velo` overrides only channel 2 velocity.
 - `channels[1].steps[3].gate` overrides only channel 2, step 4.
-- `channels[1].steps` with 8 entries implies loop length 8 for channel 2 unless `loop` was set explicitly.
+- `channels[1].steps` with 8 entries implies loop range `1-8` for channel 2 unless `loop` was set explicitly.
 
 ## Arrays and Indexing
 
@@ -135,8 +135,8 @@ Each entry may be:
 If the array is shorter than 16, omitted steps keep defaults.
 
 If the array is non-empty and no explicit `loop` was provided for that channel, the
-builder infers the channel loop length from the array length. For example, an 8-entry
-`steps` array produces loop length `8`.
+builder infers the channel loop end from the array length. For example, an 8-entry
+`steps` array produces loop range `1-8`.
 
 Each entry may be:
 
@@ -160,11 +160,10 @@ These fields are accepted in `step_defaults` and in each step object.
 
 | Key | Type | Range | Default | Aliases | Notes |
 |-----|------|-------|---------|---------|-------|
-| `loop` | integer | `1..16` | `1` | — | Loop length. If omitted, a non-empty `channels[n].steps` array infers the channel loop length from its entry count. |
+| `loop` | integer | `1..16` | `1` | — | Channel loop end. The builder writes loop range `1-loop`. If omitted, a non-empty `channels[n].steps` array infers the channel loop end from its entry count. |
 | `gate` | integer | `0..99` | `10` | `gate%` | Trigger length percent. |
 | `dens` | integer | `0..64` | `1` | — | Trigger density. |
 | `leng` | integer | `0..16` | `1` | — | Step length. |
-| `aux1` | integer or string | `0..112` | `1` | — | AUX mode index or mode name. |
 | `aux2` | integer or string | `0..112` | `1` | — | AUX mode index or mode name. |
 | `huma` | integer | `0..127` | `0` | — | Humanize amount. |
 | `phas` | integer | `0..360` | `0` | `phas_deg` | Phase in degrees. |
@@ -180,7 +179,7 @@ These fields are accepted in `step_defaults` and in each step object.
 
 ## Symbolic String Values
 
-### `aux1` / `aux2`
+### `aux2`
 
 These fields accept either:
 
@@ -260,7 +259,6 @@ If you omit a field entirely, these built-in defaults are used:
 | `gate` | `10` |
 | `dens` | `1` |
 | `leng` | `1` |
-| `aux1` | `1` (`ON`) |
 | `aux2` | `1` (`ON`) |
 | `huma` | `0` |
 | `phas` | `0` |
@@ -312,7 +310,6 @@ Example:
   "step_defaults": {
     "gate": 40,
     "dens": 1,
-    "aux1": "OFF",
     "aux2": "OFF"
   },
   "channels": [
@@ -336,6 +333,7 @@ Only parameters already mapped in the binary parser are supported here.
 
 Not yet accepted in JSON:
 
+- `AUX1`
 - `COMP`
 - `DIFF`
 - `CURV`

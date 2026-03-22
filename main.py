@@ -38,7 +38,7 @@ Usage:
   python3 main.py map                          Print parameter offset map
 
 Editable parameters (confirmed/likely):
-  loop       Loop length 1–16                 uint8  offset 0x0000
+  loop       Channel loop end 1–16            uint8  control bytes 0x0A00–0x0A07
   gate       Trigger length % 0–99            uint8  offset 0x0040
   leng       Step length in 16ths 1–16        uint8  offset 0x0080
   aux2       AUX2 mode index (see map)         uint8  offset 0x00C0
@@ -48,7 +48,6 @@ Editable parameters (confirmed/likely):
   mod_bus    Mod bus bitmask YEL=1,GRY=2,PUR=4 uint8 offset 0x0480
   prob_val   Probability % 0–100              uint8  offset 0x0640
   quan       Quantizer semitones 0–12         uint8  offset 0x07C0
-  aux1       AUX1 mode index (see map)         uint8  offset 0x0A00
   minv       Min CV voltage mV (signed)        int16  offset 0x0500
   maxv       Max CV voltage mV 0–8000         uint16 offset 0x0580
   freq       LFO frequency Hz                 float  offset 0x0680
@@ -91,7 +90,11 @@ def cmd_set(path, param, ch_s, step_s, val_s, out_path=None):
     attr, typ = SET_PARAMS[param]
     val = float(val_s) if typ == 'f32' else int(val_s, 0) if val_s.startswith('0x') else int(val_s)
     p = FluxPreset.from_file(path)
-    getattr(p, attr)[ch][step] = val
+    if param == 'loop':
+        p.loop[ch] = [val] * 16
+        p.loop_end[ch] = val
+    else:
+        getattr(p, attr)[ch][step] = val
     out = out_path or path
     p.save(out)
     print(f"Set {param} ch{ch+1} step{step+1} = {val}  →  saved to {out}")
@@ -127,6 +130,8 @@ def cmd_map():
     print(f"  0x{OFFSET_MINV:04X}   int16   {'MINV_mV':<12}  LIKELY     (64×2 bytes, signed mV)")
     print(f"  0x{OFFSET_MAXV:04X}   uint16  {'MAXV_mV':<12}  CONFIRMED  (64×2 bytes)")
     print(f"  0x{OFFSET_FREQ:04X}   float32 {'FREQ_Hz':<12}  CONFIRMED  (64×4 bytes)")
+    print("  0x0A00   u8×4   LOOP_END      CONFIRMED  (per-channel sequence end)")
+    print("  0x0A04   u8×4   LOOP_START    CONFIRMED  (per-channel sequence start)")
     print()
     print("Per-channel records (4 × 128 bytes starting at 0x1B80):")
     print(f"  CH idx  u16[{CH_CURV_IDX}]=CURV  u16[{CH_VELO_IDX}]=VELO  u16[{CH_SH16_IDX}]=SH16  u16[{CH_BPM_IDX}]=BPM")

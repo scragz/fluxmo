@@ -137,6 +137,23 @@ OFFSET_MAXV = 0x0580   # CONFIRMED — 64 × uint16 LE
 # FREQ: CV LFO frequency in Hz, stored as float32
 OFFSET_FREQ = 0x0680   # CONFIRMED — 64 × float32 LE
 
+# Loop sequence control bytes (per channel, not per step).
+# Hardware correlates these with the displayed loop range:
+#   0x0A00..0x0A03 = loop end (1..16)
+#   0x0A04..0x0A07 = loop start (1..16, usually 1)
+OFFSET_LOOP_END = 0x0A00
+OFFSET_LOOP_START = 0x0A04
+LOOP_CONTROL_DEFAULT = bytes.fromhex(
+    '01 01 01 01 01 01 01 01 '
+    '00 00 00 00 00 00 00 00 '
+    '00 00 00 00 00 00 00 00 '
+    '00 00 00 00 00 00 00 00 '
+    '00 00 00 00 00 00 00 00 '
+    '00 00 00 00 00 00 00 00 '
+    '00 00 00 00 00 00 00 00 '
+    '01 01 01 01 00 00 00 00'
+)
+
 # Per-channel record offsets (4 records × 128 bytes, starting at 0x1B80)
 OFFSET_CH_RECORDS = 0x1B80
 CH_RECORD_SIZE = 0x80  # 128 bytes
@@ -303,7 +320,6 @@ STEP_PARAM_SPECS = {
     'gate': ParamSpec('gate', 'u8', 'LIKELY', 10, 0, 99, 'GATE%', ('gate%',)),
     'dens': ParamSpec('dens', 'u8', 'CONFIRMED', 1, 0, 64, 'DENS'),
     'leng': ParamSpec('leng', 'u8', 'CONFIRMED', 1, 0, 16, 'LENG'),
-    'aux1': ParamSpec('aux1', 'u8', 'LIKELY', 1, 0, len(AUX_MODES) - 1, 'AUX1'),
     'aux2': ParamSpec('aux2', 'u8', 'LIKELY', 1, 0, len(AUX_MODES) - 1, 'AUX2'),
     'huma': ParamSpec('huma', 'u8', 'LIKELY', 0, 0, 127, 'HUMA'),
     'phas': ParamSpec('phas', 'u16', 'CONFIRMED', 0, 0, 360, 'PHAS_deg', ('phas_deg',)),
@@ -417,6 +433,8 @@ class FluxPreset:
         self.raw = self._default_raw()
         # per-step arrays, shape [4 channels][16 steps]
         self.loop     = [[STEP_PARAM_SPECS['loop'].default] * STEPS_PER_CHANNEL for _ in range(CHANNEL_COUNT)]
+        self.loop_start = [STEP_PARAM_SPECS['loop'].default] * CHANNEL_COUNT
+        self.loop_end   = [STEP_PARAM_SPECS['loop'].default] * CHANNEL_COUNT
         self.gate     = [[STEP_PARAM_SPECS['gate'].default] * STEPS_PER_CHANNEL for _ in range(CHANNEL_COUNT)]
         self.leng     = [[STEP_PARAM_SPECS['leng'].default] * STEPS_PER_CHANNEL for _ in range(CHANNEL_COUNT)]
         self.aux2     = [[STEP_PARAM_SPECS['aux2'].default] * STEPS_PER_CHANNEL for _ in range(CHANNEL_COUNT)]
@@ -432,7 +450,6 @@ class FluxPreset:
         self.prob_val = [[STEP_PARAM_SPECS['prob_val'].default] * STEPS_PER_CHANNEL for _ in range(CHANNEL_COUNT)]
         self.freq     = [[STEP_PARAM_SPECS['freq'].default] * STEPS_PER_CHANNEL for _ in range(CHANNEL_COUNT)]
         self.quan     = [[STEP_PARAM_SPECS['quan'].default] * STEPS_PER_CHANNEL for _ in range(CHANNEL_COUNT)]
-        self.aux1     = [[STEP_PARAM_SPECS['aux1'].default] * STEPS_PER_CHANNEL for _ in range(CHANNEL_COUNT)]
         # per-channel (from channel records at 0x1B80)
         self.bpm      = [CHANNEL_PARAM_SPECS['bpm'].default]  * CHANNEL_COUNT
         self.curv     = [CHANNEL_PARAM_SPECS['curv'].default] * CHANNEL_COUNT
@@ -448,6 +465,7 @@ class FluxPreset:
                 struct.pack_into('<H', d, base + idx * 2, value)
             d[base + CH_RNG_SEED_BYTE:base + CH_RNG_SEED_BYTE + 4] = secrets.token_bytes(4)
             d[base + CH_RNG2_BYTE:base + CH_RNG2_BYTE + 12] = secrets.token_bytes(12)
+        d[OFFSET_LOOP_END:OFFSET_LOOP_END + len(LOOP_CONTROL_DEFAULT)] = LOOP_CONTROL_DEFAULT
         for off, val in SECTION_B_REQUIRED.items():
             d[off] = val
         d[0x1D80:0x1D80 + len(REFERENCE_TRAILING)] = REFERENCE_TRAILING
@@ -577,6 +595,9 @@ class FluxPreset:
                         continue
                     preset.loop[ch][step] = inferred_loop
 
+            preset.loop_start[ch] = STEP_PARAM_SPECS['loop'].default
+            preset.loop_end[ch] = max(preset.loop[ch])
+
         return preset
 
     def _slot(self, ch: int, step: int) -> int:
@@ -608,7 +629,7 @@ class FluxPreset:
         return normalized
 
     def _coerce_value(self, spec: ParamSpec, value, path: str) -> int | float:
-        if spec.attr in {'aux1', 'aux2'}:
+        if spec.attr == 'aux2':
             value = _parse_aux_mode(value)
         elif spec.attr == 'mod_bus':
             value = _parse_mod_bus(value)
@@ -652,7 +673,6 @@ class FluxPreset:
         for ch in range(CHANNEL_COUNT):
             for step in range(STEPS_PER_CHANNEL):
                 idx = self._slot(ch, step)
-                self.loop[ch][step]     = safe_u8(0x0000 + idx)
                 self.gate[ch][step]     = safe_u8(0x0040 + idx)
                 self.leng[ch][step]     = safe_u8(0x0080 + idx)
                 self.aux2[ch][step]     = safe_u8(0x00C0 + idx)
@@ -668,7 +688,18 @@ class FluxPreset:
                 self.prob_val[ch][step] = safe_u8(0x0640 + idx)
                 self.freq[ch][step]     = safe_f32(OFFSET_FREQ + idx*4)
                 self.quan[ch][step]     = safe_u8(0x07C0 + idx)
-                self.aux1[ch][step]     = safe_u8(0x0A00 + idx)
+
+        for ch in range(CHANNEL_COUNT):
+            legacy_loop = safe_u8(0x0000 + self._slot(ch, 0))
+            loop_end = safe_u8(OFFSET_LOOP_END + ch)
+            loop_start = safe_u8(OFFSET_LOOP_START + ch)
+            if not (1 <= loop_start <= loop_end <= 16):
+                loop_start = 1
+                loop_end = legacy_loop if 1 <= legacy_loop <= 16 else STEP_PARAM_SPECS['loop'].default
+            self.loop_start[ch] = loop_start
+            self.loop_end[ch] = loop_end
+            for step in range(STEPS_PER_CHANNEL):
+                self.loop[ch][step] = loop_end
 
         for ch in range(CHANNEL_COUNT):
             base = OFFSET_CH_RECORDS + ch * CH_RECORD_SIZE
@@ -679,10 +710,11 @@ class FluxPreset:
                 self.sh16[ch] = safe_u16(base + CH_SH16_IDX * 2)
 
     def _write_arrays(self, d: bytearray):
+        loop_end_by_channel = [max(self.loop[ch]) for ch in range(CHANNEL_COUNT)]
         for ch in range(CHANNEL_COUNT):
             for step in range(STEPS_PER_CHANNEL):
                 idx = self._slot(ch, step)
-                d[0x0000 + idx] = self.loop[ch][step]      & 0xFF
+                d[0x0000 + idx] = loop_end_by_channel[ch]  & 0xFF
                 d[0x0040 + idx] = self.gate[ch][step]      & 0xFF
                 d[0x0080 + idx] = self.leng[ch][step]      & 0xFF
                 d[0x00C0 + idx] = self.aux2[ch][step]      & 0xFF
@@ -700,7 +732,10 @@ class FluxPreset:
                 d[0x0640 + idx] = self.prob_val[ch][step]  & 0xFF
                 struct.pack_into('<f', d, OFFSET_FREQ + idx*4, self.freq[ch][step])
                 d[0x07C0 + idx] = self.quan[ch][step]      & 0xFF
-                d[0x0A00 + idx] = self.aux1[ch][step]      & 0xFF
+
+        for ch in range(CHANNEL_COUNT):
+            d[OFFSET_LOOP_END + ch] = loop_end_by_channel[ch] & 0xFF
+            d[OFFSET_LOOP_START + ch] = self.loop_start[ch] & 0xFF
 
         for ch in range(CHANNEL_COUNT):
             base = OFFSET_CH_RECORDS + ch * CH_RECORD_SIZE
@@ -749,9 +784,8 @@ class FluxPreset:
             row('DENS',     self.dens[ch])
             row('GATE%',    self.gate[ch])
             row('LENG',     self.leng[ch])
-            row('LOOP',     self.loop[ch])
+            row('LOOP',     [self._loop_label(ch)] * STEPS_PER_CHANNEL, width=4)
             row('PHAS°',    self.phas[ch])
-            row('AUX1',     self.aux1[ch],  mapper=aux_name, width=5)
             row('AUX2',     self.aux2[ch],  mapper=aux_name, width=5)
             row('MOD',      self.mod_bus[ch], mapper=mod_bus_name)
             row('PROB',     self.prob_val[ch])
@@ -770,12 +804,11 @@ class FluxPreset:
     def get_step(self, ch: int, step: int) -> dict:
         """Return all known parameters for a given channel+step."""
         return {
-            'LOOP':     (self.loop[ch][step],                   'LIKELY'),
+            'LOOP':     (self._loop_label(ch),                  'CONFIRMED'),
             'DENS':     (self.dens[ch][step],                   'CONFIRMED'),
             'GATE%':    (self.gate[ch][step],                   'LIKELY'),
             'LENG':     (self.leng[ch][step],                   'CONFIRMED'),
             'PHAS_deg': (self.phas[ch][step],                   'CONFIRMED'),
-            'AUX1':     (aux_name(self.aux1[ch][step]),         'LIKELY'),
             'AUX2':     (aux_name(self.aux2[ch][step]),         'LIKELY'),
             'MOD_BUS':  (mod_bus_name(self.mod_bus[ch][step]),  'CONFIRMED'),
             'PROB_VAL': (self.prob_val[ch][step],               'LIKELY'),
@@ -790,3 +823,8 @@ class FluxPreset:
             # COMP (-99..+99 signed), DIFF (always 0): offsets unlocated
             # MASK, MSK>: likely in 0x0100-0x01FF, structure unclear
         }
+
+    def _loop_label(self, ch: int) -> str:
+        start = self.loop_start[ch]
+        end = self.loop_end[ch]
+        return str(start) if start == end else f"{start}-{end}"
