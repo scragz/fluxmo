@@ -1,46 +1,67 @@
 {
   "channel_defaults": {
     "bpm": 120,
-    "ppqn": 4,
-    "velo": 127,
+    "curv": 4,
+    "velo": 106,
     "sh16": 2
   },
   "step_defaults": {
-    "gate": 35,
+    "dens": 0,
+    "gate": 10,
     "leng": 1,
-    "dens": 1
+    "aux2": "OFF",
+    "huma": 30,
+    "phas": 0,
+    "mod_bus": "Y+G",
+    "prob_val": 100,
+    "minv": 0,
+    "maxv": 3000,
+    "quan": 12,
+    "freq": 1.0
   },
   "channels": [
     {
+      "velo": 118,
       "steps": [
-        { "loop": 7 },
-        { "loop": 7 },
-        { "loop": 7 },
-        { "loop": 7 },
-        { "loop": 7 },
-        { "loop": 7 },
-        { "loop": 7 }
+        { "dens": 1, "gate": 76, "leng": 4, "aux2": "START", "maxv": 5000 },
+        null,
+        { "dens": 1, "gate": 30, "leng": 1, "prob_val": 82, "maxv": 1800 },
+        null,
+        { "dens": 1, "gate": 68, "leng": 4, "maxv": 4700 },
+        null,
+        { "dens": 1, "gate": 36, "leng": 2, "prob_val": 88, "aux2": "SOS", "maxv": 2400 }
       ]
     },
     {
+      "velo": 96,
       "steps": [
-        { "loop": 7 },
-        { "loop": 7 },
-        { "loop": 7 },
-        { "loop": 7 },
-        { "loop": 7 },
-        { "loop": 7 },
-        { "loop": 7 }
+        { "dens": 1, "gate": 16, "mod_bus": "G", "minv": 2200, "maxv": 3200 },
+        { "dens": 2, "gate": 14, "prob_val": 84, "mod_bus": "G", "minv": 2400, "maxv": 3600 },
+        { "dens": 1, "gate": 16, "mod_bus": "G", "minv": 2200, "maxv": 3200 },
+        { "dens": 2, "gate": 14, "prob_val": 78, "phas": 90, "mod_bus": "G", "minv": 2400, "maxv": 3600 },
+        { "dens": 1, "gate": 16, "mod_bus": "G", "minv": 2200, "maxv": 3200 },
+        { "dens": 2, "gate": 14, "prob_val": 82, "mod_bus": "G", "minv": 2400, "maxv": 3600 },
+        { "dens": 1, "gate": 16, "prob_val": 90, "mod_bus": "G", "minv": 2200, "maxv": 3200 }
       ]
     },
     {
+      "velo": 102,
       "steps": [
-        { "loop": 4 },
-        { "loop": 4 },
-        { "loop": 4 },
-        { "loop": 4 }
+        null,
+        { "dens": 1, "gate": 48, "leng": 2, "aux2": "SOS", "mod_bus": "P", "maxv": 2600 },
+        null,
+        { "dens": 1, "gate": 20, "leng": 1, "prob_val": 74, "mod_bus": "OFF", "maxv": 1400 },
+        { "dens": 1, "gate": 52, "leng": 2, "aux2": "SOS", "mod_bus": "P", "maxv": 3000 }
       ]
     },
-    {}
+    {
+      "velo": 94,
+      "steps": [
+        { "dens": 1, "gate": 28, "leng": 2, "prob_val": 84, "phas": 0, "mod_bus": "Y+P", "minv": 500, "maxv": 900 },
+        null,
+        { "dens": 1, "gate": 24, "leng": 1, "prob_val": 76, "phas": 180, "mod_bus": "Y+P", "minv": 1000, "maxv": 1400 },
+        null
+      ]
+    }
   ]
 }

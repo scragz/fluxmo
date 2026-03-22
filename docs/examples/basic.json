@@ -1,33 +1,99 @@
 {
   "channel_defaults": {
-    "bpm": 120,
-    "velo": 110,
+    "bpm": 122,
+    "curv": 4,
+    "velo": 108,
     "sh16": 2
   },
   "step_defaults": {
-    "gate": 35,
+    "dens": 0,
+    "gate": 10,
     "leng": 1,
-    "mod_bus": "Y+G",
     "aux2": "OFF",
+    "huma": 20,
+    "phas": 0,
+    "mod_bus": "Y+G",
+    "prob_val": 100,
     "minv": 0,
-    "maxv": 5000,
-    "freq": 1.0,
-    "quan": 12
+    "maxv": 4000,
+    "quan": 12,
+    "freq": 1.0
   },
   "channels": [
     {
+      "velo": 118,
       "steps": [
-        { "dens": 8, "prob": 100 },
-        { "dens": 4, "phas": 90 },
-        { "dens": 2, "phas_deg": 180 }
+        { "dens": 1, "gate": 78, "leng": 4, "aux2": "START", "maxv": 5000 },
+        null,
+        null,
+        null,
+        { "dens": 1, "gate": 68, "leng": 4, "maxv": 4800 },
+        null,
+        { "dens": 1, "gate": 28, "leng": 1, "prob_val": 80, "maxv": 2200 },
+        null,
+        { "dens": 1, "gate": 74, "leng": 4, "maxv": 5000 },
+        null,
+        null,
+        { "dens": 1, "gate": 38, "leng": 2, "prob_val": 88, "aux2": "SOS", "maxv": 2600 },
+        { "dens": 1, "gate": 70, "leng": 4, "maxv": 4700 },
+        null,
+        null,
+        null
       ]
     },
     {
-      "velo": 127,
+      "velo": 100,
       "steps": [
-        { "dens": 1, "mod": "P" },
         null,
-        { "dens": 6, "mod_bus": "Y+P", "freq_hz": 0.5 }
+        null,
+        null,
+        null,
+        { "dens": 1, "gate": 46, "leng": 2, "aux2": "SOS", "mod_bus": "P", "maxv": 2600 },
+        null,
+        null,
+        { "dens": 1, "gate": 18, "leng": 1, "prob_val": 72, "mod_bus": "OFF", "maxv": 1400 },
+        null,
+        null,
+        null,
+        null,
+        { "dens": 1, "gate": 52, "leng": 2, "aux2": "SOS", "mod_bus": "P", "maxv": 3000 },
+        null,
+        { "dens": 1, "gate": 18, "leng": 1, "prob_val": 68, "mod_bus": "OFF", "maxv": 1200 },
+        null
+      ]
+    },
+    {
+      "velo": 94,
+      "steps": [
+        { "dens": 1, "gate": 16, "mod_bus": "G", "minv": 2000, "maxv": 3200 },
+        { "dens": 1, "gate": 14, "prob_val": 84, "mod_bus": "G", "minv": 2000, "maxv": 2800 },
+        { "dens": 1, "gate": 16, "mod_bus": "G", "minv": 2200, "maxv": 3400 },
+        { "dens": 2, "gate": 14, "prob_val": 80, "mod_bus": "G", "minv": 2400, "maxv": 3600 },
+        { "dens": 1, "gate": 16, "mod_bus": "G", "minv": 2000, "maxv": 3200 },
+        { "dens": 1, "gate": 14, "prob_val": 88, "mod_bus": "G", "minv": 2000, "maxv": 2800 },
+        { "dens": 1, "gate": 16, "mod_bus": "G", "minv": 2200, "maxv": 3400 },
+        { "dens": 2, "gate": 14, "prob_val": 82, "mod_bus": "G", "minv": 2400, "maxv": 3600 },
+        { "dens": 1, "gate": 16, "mod_bus": "G", "minv": 2000, "maxv": 3200 },
+        { "dens": 1, "gate": 14, "prob_val": 84, "mod_bus": "G", "minv": 2000, "maxv": 2800 },
+        { "dens": 1, "gate": 16, "mod_bus": "G", "minv": 2200, "maxv": 3400 },
+        { "dens": 2, "gate": 14, "prob_val": 78, "mod_bus": "G", "minv": 2400, "maxv": 3600 },
+        { "dens": 1, "gate": 16, "mod_bus": "G", "minv": 2000, "maxv": 3200 },
+        { "dens": 1, "gate": 14, "prob_val": 90, "mod_bus": "G", "minv": 2000, "maxv": 2800 },
+        { "dens": 1, "gate": 16, "mod_bus": "G", "minv": 2200, "maxv": 3400 },
+        { "dens": 2, "gate": 14, "prob_val": 84, "mod_bus": "G", "minv": 2400, "maxv": 3600 }
+      ]
+    },
+    {
+      "velo": 98,
+      "steps": [
+        { "dens": 1, "gate": 34, "leng": 2, "mod_bus": "Y+P", "minv": 500, "maxv": 900 },
+        null,
+        { "dens": 1, "gate": 28, "leng": 1, "prob_val": 82, "phas": 180, "mod_bus": "Y+P", "minv": 900, "maxv": 1300 },
+        null,
+        { "dens": 1, "gate": 34, "leng": 2, "mod_bus": "Y+P", "minv": 500, "maxv": 900 },
+        null,
+        { "dens": 1, "gate": 24, "leng": 1, "prob_val": 76, "phas": 270, "mod_bus": "Y+P", "minv": 1400, "maxv": 1800 },
+        null
       ]
     }
   ]
