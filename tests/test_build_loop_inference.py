@@ -106,9 +106,19 @@ class BuildLoopInferenceTests(unittest.TestCase):
         self.assertEqual(raw[0x1CA6:0x1CA8], bytes([4, 0]))
         self.assertEqual(raw[0x1D26:0x1D28], bytes([4, 0]))
 
+    def test_new_build_matches_device_default_baseline_for_known_unknowns(self):
+        preset = FluxPreset.from_dict({'channels': []})
+        raw = preset.to_bytes()
+
+        self.assertEqual(raw[0x0EC0:0x0ED0], bytes([0xC8]) * 16)
+        self.assertEqual(raw[0x1BFC:0x1C00], bytes([0xC8, 0x00, 0xC8, 0x00]))
+        self.assertEqual(raw[0x1C7C:0x1C80], bytes([0xC8, 0x00, 0xC8, 0x00]))
+        self.assertEqual(raw[0x1CFC:0x1D00], bytes([0xC8, 0x00, 0xC8, 0x00]))
+        self.assertEqual(raw[0x1D7C:0x1D80], bytes([0x00, 0x00, 0x00, 0x00]))
+
     def test_step_arrays_are_serialized_step_major(self):
         preset = FluxPreset.from_dict({
-            'step_defaults': {'dens': 0, 'leng': 1},
+            'step_defaults': {'dens': 0, 'leng': 7, 'prob_val': 88, 'huma': 40},
             'channels': [
                 {'steps': [{'dens': 1, 'leng': 4}, None, {'dens': 2, 'leng': 6}]},
                 {'steps': [None, {'dens': 3, 'leng': 8}]},
@@ -118,7 +128,23 @@ class BuildLoopInferenceTests(unittest.TestCase):
         raw = preset.to_bytes()
 
         self.assertEqual(list(raw[0x0200:0x020C]), [1, 0, 0, 0, 0, 3, 0, 0, 2, 0, 0, 0])
-        self.assertEqual(list(raw[0x0080:0x008C]), [4, 1, 1, 1, 1, 8, 1, 1, 6, 1, 1, 1])
+        self.assertEqual(list(raw[0x0080:0x008C]), [4, 1, 7, 7, 1, 8, 7, 7, 6, 7, 7, 7])
+        self.assertEqual(list(raw[0x0640:0x064C]), [88, 100, 88, 88, 100, 88, 88, 88, 88, 88, 88, 88])
+        self.assertEqual(list(raw[0x0340:0x034C]), [40, 0, 40, 40, 0, 40, 40, 40, 40, 40, 40, 40])
+
+    def test_null_steps_reset_to_default_silent_steps(self):
+        preset = FluxPreset.from_dict({
+            'step_defaults': {'dens': 0, 'leng': 9, 'prob_val': 88, 'huma': 40, 'maxv': 4500},
+            'channels': [
+                {'steps': [None]},
+            ],
+        })
+
+        self.assertEqual(preset.dens[0][0], 0)
+        self.assertEqual(preset.leng[0][0], 1)
+        self.assertEqual(preset.prob_val[0][0], 100)
+        self.assertEqual(preset.huma[0][0], 0)
+        self.assertEqual(preset.maxv[0][0], 8000)
 
     def test_curve_labels_map_to_likely_curve_block(self):
         preset = FluxPreset.from_dict({

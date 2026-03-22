@@ -9,6 +9,6 @@ These example JSON files were written based on the reverse-engineered format doc
 
 Notes:
 
-- All examples use `step_defaults.dens = 0` so omitted steps stay silent. That makes the drum patterns explicit in JSON.
+- All examples use `step_defaults.dens = 0` so omitted steps stay silent, and `null` entries inside a `steps` array emit default silent steps rather than inheriting the current `step_defaults`.
 - The `cvsel` and `sync` enums are still only partially decoded in the codebase, so the dedicated CV example uses raw numeric values instead of symbolic names.
 - AUX utility modes such as `START`, `PPQ12`, and `/4` are intentional here: they show how a preset can drive external resets or clocks while the main rhythm lanes stay musical.

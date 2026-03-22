@@ -99,14 +99,14 @@ A second set of per-step parameters begins at 0x0800. Structure less mapped than
 | 0x0C00–0x1B7F | —         | —      | Evolve LFO + Macro Pots | — | UNCERTAIN | Partially decoded. See Evolve notes below. |
 
 **Evolve LFO observations:**
-- 0x0EA0–0x0EDF: 64 bytes all = 200 (0xC8). Unknown param.
+- 0x0EA0–0x0EDF: 64 bytes all = 200 (0xC8) in device-saved defaults. Unknown param.
 - 0x0EE0: specific uint16 values. Unknown.
 - 0x0FB0 region: 16-byte groups of 0x02. Possibly SH16 per step.
 - Full Evolve structure (85 params × 4 channels) not yet decoded.
 
 **Required non-zero bytes in Section B:**
 
-178 bytes in Section B are constant across all 31 corpus presets and must be present for the firmware to load the file without hanging. They are scattered through the LFO/Macro region. Key clusters:
+194 bytes in Section B are used as the builder's device-default baseline. They are scattered through the LFO/Macro region. Key clusters:
 
 | Range           | Value | Count | Notes |
 |-----------------|-------|-------|-------|
@@ -121,7 +121,7 @@ A second set of per-step parameters begins at 0x0800. Structure less mapped than
 | 0x18B4–0x18BA   | 0x01  | 4     | Sparse |
 | 0x1B7C–0x1B7E   | 0xC8  | 2     | |
 
-These are encoded as `SECTION_B_REQUIRED` in `src/fluxmo/preset.py` and applied in `_default_raw()`. Any preset built by the script will have them correctly initialized.
+These are encoded as `SECTION_B_REQUIRED` in `src/fluxmo/preset.py` and applied in `_default_raw()`. Fresh builds now initialize the full `0x0EA0–0x0EDF` default block, including `0x0EC0–0x0ECF`.
 
 ---
 
@@ -169,8 +169,8 @@ These are encoded as `SECTION_B_REQUIRED` in `src/fluxmo/preset.py` and applied 
 | 59        | +0x76      | (unknown)    | 304     | UNCERTAIN | Constant. |
 | 60        | +0x78      | BPM          | 120     | LIKELY    | |
 | 61        | +0x7A      | (unknown)    | 360     | UNCERTAIN | Constant (0x0168 LE). |
-| 62        | +0x7C      | (unknown)    | 200     | UNCERTAIN | Constant. |
-| 63        | +0x7E      | (unknown)    | 200     | UNCERTAIN | Constant. |
+| 62        | +0x7C      | (unknown)    | 200 / 0 | UNCERTAIN | Channels 1-3 are `200`; channel 4 is `0` across current v3 corpus. |
+| 63        | +0x7E      | (unknown)    | 200 / 0 | UNCERTAIN | Channels 1-3 are `200`; channel 4 is `0` across current v3 corpus. |
 
 **Random/unique fields:**
 

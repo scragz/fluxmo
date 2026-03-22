@@ -220,8 +220,8 @@ CHANNEL_RECORD_DEFAULTS_U16 = {
     63: 200,
 }
 
-# Required non-zero bytes in section B (0x0800–0x1B7F, LFO/Macro modulation data).
-# Constant across all 31 device-saved presets. Device hangs if these are zero.
+# Required/default bytes in section B (0x0800–0x1B7F, LFO/Macro modulation data).
+# These bytes are needed for the builder baseline to match real device-saved defaults.
 # Excludes bytes written by _write_arrays() and random seed regions.
 # Extracted from data/2024-09-15/ corpus.
 SECTION_B_REQUIRED = {
@@ -253,6 +253,10 @@ SECTION_B_REQUIRED = {
     0x0EB4: 0xC8, 0x0EB5: 0xC8, 0x0EB6: 0xC8, 0x0EB7: 0xC8,
     0x0EB8: 0xC8, 0x0EB9: 0xC8, 0x0EBA: 0xC8, 0x0EBB: 0xC8,
     0x0EBC: 0xC8, 0x0EBD: 0xC8, 0x0EBE: 0xC8, 0x0EBF: 0xC8,
+    0x0EC0: 0xC8, 0x0EC1: 0xC8, 0x0EC2: 0xC8, 0x0EC3: 0xC8,
+    0x0EC4: 0xC8, 0x0EC5: 0xC8, 0x0EC6: 0xC8, 0x0EC7: 0xC8,
+    0x0EC8: 0xC8, 0x0EC9: 0xC8, 0x0ECA: 0xC8, 0x0ECB: 0xC8,
+    0x0ECC: 0xC8, 0x0ECD: 0xC8, 0x0ECE: 0xC8, 0x0ECF: 0xC8,
     0x0ED0: 0xC8, 0x0ED1: 0xC8, 0x0ED2: 0xC8, 0x0ED3: 0xC8,
     0x0ED4: 0xC8, 0x0ED5: 0xC8, 0x0ED6: 0xC8, 0x0ED7: 0xC8,
     0x0ED8: 0xC8, 0x0ED9: 0xC8, 0x0EDA: 0xC8, 0x0EDB: 0xC8,
@@ -509,6 +513,10 @@ class FluxPreset:
             base = OFFSET_CH_RECORDS + ch * CH_RECORD_SIZE
             for idx, value in CHANNEL_RECORD_DEFAULTS_U16.items():
                 struct.pack_into('<H', d, base + idx * 2, value)
+            if ch == 3:
+                # Device-saved v3 defaults keep CH4's final two words at zero.
+                struct.pack_into('<H', d, base + 62 * 2, 0)
+                struct.pack_into('<H', d, base + 63 * 2, 0)
             d[base + CH_RNG_SEED_BYTE:base + CH_RNG_SEED_BYTE + 4] = secrets.token_bytes(4)
             d[base + CH_RNG2_BYTE:base + CH_RNG2_BYTE + 12] = secrets.token_bytes(12)
         d[OFFSET_LOOP_END:OFFSET_LOOP_END + len(LOOP_CONTROL_DEFAULT)] = LOOP_CONTROL_DEFAULT
@@ -615,6 +623,7 @@ class FluxPreset:
             explicit_loop_steps = set()
             for step, step_data in enumerate(steps):
                 if step_data is None:
+                    preset._reset_null_step(ch, step)
                     continue
                 if not isinstance(step_data, dict):
                     raise ValueError(f"channels[{ch}].steps[{step}] must be an object.")
@@ -706,6 +715,12 @@ class FluxPreset:
     def _set_channel_value(self, ch: int, key: str, value, path: str):
         spec = CHANNEL_PARAM_SPECS[key]
         getattr(self, spec.attr)[ch] = value
+
+    def _reset_null_step(self, ch: int, step: int):
+        # A JSON null step means "default silent step", not "inherit step_defaults".
+        for key, spec in STEP_PARAM_SPECS.items():
+            getattr(self, spec.attr)[ch][step] = spec.default
+        self.dens[ch][step] = 0
 
     def _parse(self):
         d = self.raw

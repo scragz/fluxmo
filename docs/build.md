@@ -141,7 +141,11 @@ builder infers the channel loop end from the array length. For example, an 8-ent
 Each entry may be:
 
 - an object
-- `null` to skip that step
+- `null` to emit a default silent step
+
+`null` step entries are serialized as default silent steps: all known per-step
+fields are reset to their built-in defaults, then `dens` is forced to `0`.
+This means `null` does not inherit `step_defaults`.
 
 ## Channel Fields
 
