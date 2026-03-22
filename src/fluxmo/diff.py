@@ -88,7 +88,7 @@ def _offset_note(off: int) -> str:
             rel = off - base
             if rel == CH_BPM_IDX  * 2:     return f"BPM ch{ch+1} (CONFIRMED)"
             if rel == CH_BPM_IDX  * 2 + 1: return f"BPM ch{ch+1} high byte (CONFIRMED)"
-            if rel == CH_CURV_IDX * 2:     return f"CURV ch{ch+1} (CONFIRMED)"
+            if rel == CH_CURV_IDX * 2:     return f"record u16[{CH_CURV_IDX}] ch{ch+1} (UNCERTAIN)"
             if rel == CH_VELO_IDX * 2:     return f"VELO ch{ch+1} (CONFIRMED)"
             if rel == CH_SH16_IDX * 2:     return f"SH16 ch{ch+1} (CONFIRMED)"
             if 0x14 <= rel < 0x18:         return f"RNG seed ch{ch+1} (per-channel UUID)"

@@ -1,7 +1,6 @@
 {
   "channel_defaults": {
     "bpm": 122,
-    "curv": 4,
     "velo": 108,
     "sh16": 2
   },

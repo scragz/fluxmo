@@ -150,7 +150,6 @@ These fields are accepted in `channel_defaults` and in each channel object.
 | Key | Type | Range | Default | Notes |
 |-----|------|-------|---------|-------|
 | `bpm` | integer | `0..65535` | `120` | Likely mirror of PREF BPM in the per-channel record. |
-| `curv` | integer | `0..65535` | `4` | Confirmed. Curve selector; enumerated display values: 1, 2.0–2.5, 3.0–3.5…8.0, then NN variants. **Not PPQN** — PPQN is a global setting in the PREF file. |
 | `velo` | integer | `0..127` | `127` | Confirmed MIDI velocity. |
 | `sh16` | integer | `0..65535` | `2` | Confirmed. |
 
@@ -163,7 +162,7 @@ These fields are accepted in `step_defaults` and in each step object.
 | `loop` | integer | `1..16` | `1` | — | Channel loop end. The builder writes loop range `1-loop`. If omitted, a non-empty `channels[n].steps` array infers the channel loop end from its entry count. |
 | `gate` | integer | `0..99` | `10` | `gate%` | Trigger length percent. |
 | `dens` | integer | `0..64` | `1` | — | Trigger density. |
-| `leng` | integer | `0..16` | `1` | — | Step length. |
+| `leng` | integer | `1..32` | `1` | `length` | Step length in 16ths. Manual text and corpus both show values above 8; `0` is treated as invalid by the builder. |
 | `aux2` | integer or string | `0..112` | `1` | — | AUX mode index or mode name. |
 | `huma` | integer | `0..127` | `0` | — | Humanize amount. |
 | `phas` | integer | `0..360` | `0` | `phas_deg` | Phase in degrees. |
@@ -247,7 +246,6 @@ If you omit a field entirely, these built-in defaults are used:
 | Field | Default |
 |-------|---------|
 | `bpm` | `120` |
-| `curv` | `4` |
 | `velo` | `127` |
 | `sh16` | `2` |
 
@@ -346,6 +344,9 @@ Not yet accepted in JSON:
 - `RCUR`
 - `SCAL`
 - Evolve / Macro Pot sections
+
+`CURV` is intentionally excluded here because the manual confirms it is a per-step
+rhythm parameter, while its binary offset is still unresolved in the writer.
 
 When those offsets are decoded, they can be added to the builder format.
 

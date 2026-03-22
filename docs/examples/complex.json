@@ -1,7 +1,6 @@
 {
   "channel_defaults": {
     "bpm": 126,
-    "curv": 4,
     "velo": 104,
     "sh16": 2
   },
@@ -21,7 +20,6 @@
   },
   "channels": [
     {
-      "curv": 5,
       "velo": 120,
       "steps": [
         { "dens": 1, "gate": 82, "leng": 4, "aux2": "START", "maxv": 5000 },
@@ -39,7 +37,6 @@
       ]
     },
     {
-      "curv": 4,
       "velo": 102,
       "steps": [
         null,
@@ -55,7 +52,6 @@
       ]
     },
     {
-      "curv": 6,
       "velo": 92,
       "sh16": 3,
       "steps": [
@@ -67,7 +63,6 @@
       ]
     },
     {
-      "curv": 4,
       "velo": 96,
       "sh16": 4,
       "steps": [

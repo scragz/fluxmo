@@ -103,7 +103,7 @@ STEP_ARRAYS_U8 = {
     #
     0x0000: ('LOOP',     'LIKELY'),      # Loop length per step (1–16). Default=1.
     0x0040: ('GATE',     'LIKELY'),      # Gate/trigger length (0–99%). Default=10.
-    0x0080: ('LENG',     'CONFIRMED'),   # Step length (0–8, displayed as N/16). Default=1.
+    0x0080: ('LENG',     'CONFIRMED'),   # Step length in 16ths. Default=1; corpus includes values up to 32.
     0x00C0: ('AUX2',     'LIKELY'),      # AUX output 2 mode index (see AUX_MODES). Default=1=ON.
     # 0x0100–0x01FF: 256 bytes, sparse [0, 51, 64, 192] — bitmask pattern.
     #   Candidates: MASK (8-bit bitmask per step), MSK> (mask shift).
@@ -159,9 +159,10 @@ OFFSET_CH_RECORDS = 0x1B80
 CH_RECORD_SIZE = 0x80  # 128 bytes
 
 # Within each 128-byte per-channel record (uint16 LE indices):
-CH_CURV_IDX  = 19   # CONFIRMED: CURV (curve selector), NOT PPQN. Default=4.
-                    # Enumerated display values: 1, 2.0–2.5, 3.0–3.5...8.0, then NN variants.
-                    # PPQN is a global setting in the PREF file, not per-channel in presets.
+# NOTE: u16[19] was previously mislabeled as CURV. Manual review confirms CURV is a
+# per-step rhythm parameter, not a per-channel record field. The word at index 19 is
+# still parsed as a raw value for inspection, but the builder must not expose or write it.
+CH_CURV_IDX  = 19
 CH_VELO_IDX  = 21   # CONFIRMED: VELO=127 matches
 CH_SH16_IDX  = 49   # CONFIRMED: SH16=2 matches
 CH_BPM_IDX   = 60   # LIKELY: value matches PREF BPM
@@ -319,7 +320,7 @@ STEP_PARAM_SPECS = {
     'loop': ParamSpec('loop', 'u8', 'LIKELY', 1, 1, 16, 'LOOP'),
     'gate': ParamSpec('gate', 'u8', 'LIKELY', 10, 0, 99, 'GATE%', ('gate%',)),
     'dens': ParamSpec('dens', 'u8', 'CONFIRMED', 1, 0, 64, 'DENS'),
-    'leng': ParamSpec('leng', 'u8', 'CONFIRMED', 1, 0, 16, 'LENG'),
+    'leng': ParamSpec('leng', 'u8', 'CONFIRMED', 1, 1, 32, 'LENG', ('length',)),
     'aux2': ParamSpec('aux2', 'u8', 'LIKELY', 1, 0, len(AUX_MODES) - 1, 'AUX2'),
     'huma': ParamSpec('huma', 'u8', 'LIKELY', 0, 0, 127, 'HUMA'),
     'phas': ParamSpec('phas', 'u16', 'CONFIRMED', 0, 0, 360, 'PHAS_deg', ('phas_deg',)),
@@ -336,10 +337,6 @@ STEP_PARAM_SPECS = {
 
 CHANNEL_PARAM_SPECS = {
     'bpm':  ParamSpec('bpm',  'u16', 'LIKELY',    120, 0, 65535, 'BPM'),
-    # CURV: curve selector. Display values: 1, 2.0–2.5, 3.0–3.5…8.0, then NN variants.
-    # Corpus default is index 4. Only enumerated indices show named labels on device.
-    # NOTE: this is NOT PPQN — PPQN is a global setting in the PREF file.
-    'curv': ParamSpec('curv', 'u16', 'CONFIRMED',   4, 0, 65535, 'CURV'),
     'velo': ParamSpec('velo', 'u16', 'CONFIRMED', 127, 0, 127,   'VELO'),
     'sh16': ParamSpec('sh16', 'u16', 'CONFIRMED',   2, 0, 65535, 'SH16'),
 }
@@ -452,7 +449,7 @@ class FluxPreset:
         self.quan     = [[STEP_PARAM_SPECS['quan'].default] * STEPS_PER_CHANNEL for _ in range(CHANNEL_COUNT)]
         # per-channel (from channel records at 0x1B80)
         self.bpm      = [CHANNEL_PARAM_SPECS['bpm'].default]  * CHANNEL_COUNT
-        self.curv     = [CHANNEL_PARAM_SPECS['curv'].default] * CHANNEL_COUNT
+        self.curv     = [4] * CHANNEL_COUNT
         self.velo     = [CHANNEL_PARAM_SPECS['velo'].default] * CHANNEL_COUNT
         self.sh16     = [CHANNEL_PARAM_SPECS['sh16'].default] * CHANNEL_COUNT
 
@@ -741,7 +738,6 @@ class FluxPreset:
             base = OFFSET_CH_RECORDS + ch * CH_RECORD_SIZE
             if base + CH_RECORD_SIZE <= len(d):
                 struct.pack_into('<H', d, base + CH_BPM_IDX  * 2, self.bpm[ch])
-                struct.pack_into('<H', d, base + CH_CURV_IDX * 2, self.curv[ch])
                 struct.pack_into('<H', d, base + CH_VELO_IDX * 2, self.velo[ch])
                 struct.pack_into('<H', d, base + CH_SH16_IDX * 2, self.sh16[ch])
 
@@ -763,7 +759,7 @@ class FluxPreset:
         for ch in range(CHANNEL_COUNT):
             ch_name = ['CH1(orange)', 'CH2(green)', 'CH3(blue)', 'CH4(red)'][ch]
             print(f"  ─── {ch_name} ───")
-            print(f"    CURV: {self.curv[ch]}   VELO: {self.velo[ch]}   SH16: {self.sh16[ch]}   (BPM/PPQN in PREF)")
+            print(f"    REC19?: {self.curv[ch]}   VELO: {self.velo[ch]}   SH16: {self.sh16[ch]}   (BPM/PPQN in PREF)")
             print()
 
             hdr = f"    {'':8} " + " ".join(f"S{s+1:02d}" for s in range(STEPS_PER_CHANNEL))

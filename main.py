@@ -40,7 +40,7 @@ Usage:
 Editable parameters (confirmed/likely):
   loop       Channel loop end 1–16            uint8  control bytes 0x0A00–0x0A07
   gate       Trigger length % 0–99            uint8  offset 0x0040
-  leng       Step length in 16ths 1–16        uint8  offset 0x0080
+  leng       Step length in 16ths 1–32        uint8  offset 0x0080
   aux2       AUX2 mode index (see map)         uint8  offset 0x00C0
   dens       Trigger density 0–64             uint8  offset 0x0200
   huma       Humanize 0–127                   uint8  offset 0x0340
@@ -90,11 +90,16 @@ def cmd_set(path, param, ch_s, step_s, val_s, out_path=None):
     attr, typ = SET_PARAMS[param]
     val = float(val_s) if typ == 'f32' else int(val_s, 0) if val_s.startswith('0x') else int(val_s)
     p = FluxPreset.from_file(path)
-    if param == 'loop':
-        p.loop[ch] = [val] * 16
-        p.loop_end[ch] = val
-    else:
-        getattr(p, attr)[ch][step] = val
+    try:
+        if param == 'loop':
+            val = p._coerce_value(STEP_PARAM_SPECS['loop'], val, 'loop')
+            p.loop[ch] = [val] * 16
+            p.loop_end[ch] = val
+        else:
+            p._set_step_value(ch, step, param, val, param)
+    except ValueError as exc:
+        print(f"Parameter error: {exc}")
+        return
     out = out_path or path
     p.save(out)
     print(f"Set {param} ch{ch+1} step{step+1} = {val}  →  saved to {out}")
@@ -134,7 +139,7 @@ def cmd_map():
     print("  0x0A04   u8×4   LOOP_START    CONFIRMED  (per-channel sequence start)")
     print()
     print("Per-channel records (4 × 128 bytes starting at 0x1B80):")
-    print(f"  CH idx  u16[{CH_CURV_IDX}]=CURV  u16[{CH_VELO_IDX}]=VELO  u16[{CH_SH16_IDX}]=SH16  u16[{CH_BPM_IDX}]=BPM")
+    print(f"  CH idx  u16[{CH_CURV_IDX}]=UNKNOWN?  u16[{CH_VELO_IDX}]=VELO  u16[{CH_SH16_IDX}]=SH16  u16[{CH_BPM_IDX}]=BPM")
     print()
     print("AUX mode indices:")
     for i, name in enumerate(AUX_MODES[:30]):

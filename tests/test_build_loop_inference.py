@@ -69,6 +69,29 @@ class BuildLoopInferenceTests(unittest.TestCase):
                 'step_defaults': {'aux1': 'ON'},
             })
 
+    def test_channel_curv_is_rejected_until_remapped(self):
+        with self.assertRaisesRegex(ValueError, 'unknown field'):
+            FluxPreset.from_dict({
+                'channel_defaults': {'curv': 4},
+            })
+
+    def test_leng_must_be_between_1_and_32(self):
+        with self.assertRaisesRegex(ValueError, 'must be >= 1'):
+            FluxPreset.from_dict({
+                'step_defaults': {'leng': 0},
+            })
+
+        with self.assertRaisesRegex(ValueError, 'must be <= 32'):
+            FluxPreset.from_dict({
+                'step_defaults': {'leng': 33},
+            })
+
+        preset = FluxPreset.from_dict({
+            'step_defaults': {'length': 32},
+        })
+
+        self.assertEqual(preset.leng[0][0], 32)
+
 
 if __name__ == '__main__':
     unittest.main()

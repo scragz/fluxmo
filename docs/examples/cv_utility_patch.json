@@ -1,7 +1,6 @@
 {
   "channel_defaults": {
     "bpm": 120,
-    "curv": 4,
     "velo": 100,
     "sh16": 2
   },
@@ -86,7 +85,6 @@
     },
     {
       "velo": 92,
-      "curv": 5,
       "steps": [
         { "dens": 1, "gate": 32, "leng": 4, "cvsel": 3, "sync": 2, "s_h": true, "mod_bus": "Y+P", "minv": 500, "maxv": 1200, "quan": 0, "freq": 0.5 },
         null,
