@@ -162,6 +162,7 @@ These fields are accepted in `step_defaults` and in each step object.
 | `loop` | integer | `1..16` | `1` | — | Channel loop end. The builder writes loop range `1-loop`. If omitted, a non-empty `channels[n].steps` array infers the channel loop end from its entry count. |
 | `gate` | integer | `0..99` | `10` | `gate%` | Trigger length percent. |
 | `dens` | integer | `0..64` | `1` | — | Trigger density. |
+| `curv` | string or number | `1`, `2.0..8.5`, `NL2.0..NL4.4` | `1` | `curve` | Experimental per-step TM curve selector. Likely stored at `0x0280`. String labels are preferred; numeric input is accepted for non-`NL` labels. The current corpus only shows values up to `4.5`; higher labels come from the manual ordering. |
 | `leng` | integer | `1..32` | `1` | `length` | Step length in 16ths. Manual text and corpus both show values above 8; `0` is treated as invalid by the builder. |
 | `aux2` | integer or string | `0..112` | `1` | — | AUX mode index or mode name. |
 | `huma` | integer | `0..127` | `0` | — | Humanize amount. |
@@ -256,6 +257,7 @@ If you omit a field entirely, these built-in defaults are used:
 | `loop` | `1` |
 | `gate` | `10` |
 | `dens` | `1` |
+| `curv` | `1` |
 | `leng` | `1` |
 | `aux2` | `1` (`ON`) |
 | `huma` | `0` |
@@ -334,7 +336,6 @@ Not yet accepted in JSON:
 - `AUX1`
 - `COMP`
 - `DIFF`
-- `CURV`
 - `MASK`
 - `MSK>`
 - `VAL`
@@ -345,8 +346,11 @@ Not yet accepted in JSON:
 - `SCAL`
 - Evolve / Macro Pot sections
 
-`CURV` is intentionally excluded here because the manual confirms it is a per-step
-rhythm parameter, while its binary offset is still unresolved in the writer.
+`CURV` is now accepted as an experimental per-step field based on probe preset
+evidence, the manual ordering, and user validation. The binary offset at `0x0280`
+is the current best match. Device-saved corpus files only reach `4.5` so far; the
+rest of the documented `2.x..8.x` and `NL2.x..NL4.x` range still needs more
+hardware validation.
 
 When those offsets are decoded, they can be added to the builder format.
 

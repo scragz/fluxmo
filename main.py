@@ -40,6 +40,7 @@ Usage:
 Editable parameters (confirmed/likely):
   loop       Channel loop end 1–16            uint8  control bytes 0x0A00–0x0A07
   gate       Trigger length % 0–99            uint8  offset 0x0040
+  curv       TM curve label                   u8     offset 0x0280 (likely; accepts 1, 2.0.., NL2.0..)
   leng       Step length in 16ths 1–32        uint8  offset 0x0080
   aux2       AUX2 mode index (see map)         uint8  offset 0x00C0
   dens       Trigger density 0–64             uint8  offset 0x0200
@@ -87,22 +88,30 @@ def cmd_set(path, param, ch_s, step_s, val_s, out_path=None):
     if param not in SET_PARAMS:
         print(f"Unknown param '{param}'. Run 'map' for a list.")
         return
-    attr, typ = SET_PARAMS[param]
-    val = float(val_s) if typ == 'f32' else int(val_s, 0) if val_s.startswith('0x') else int(val_s)
+    spec = STEP_PARAM_SPECS[param]
+    _, typ = SET_PARAMS[param]
+    if typ == 'f32':
+        val = float(val_s)
+    elif param in {'aux2', 'mod_bus', 'curv'}:
+        val = val_s
+    else:
+        val = int(val_s, 0) if val_s.startswith('0x') else int(val_s)
     p = FluxPreset.from_file(path)
     try:
         if param == 'loop':
-            val = p._coerce_value(STEP_PARAM_SPECS['loop'], val, 'loop')
-            p.loop[ch] = [val] * 16
-            p.loop_end[ch] = val
+            coerced = p._coerce_value(spec, val, 'loop')
+            p.loop[ch] = [coerced] * 16
+            p.loop_end[ch] = coerced
         else:
-            p._set_step_value(ch, step, param, val, param)
+            coerced = p._coerce_value(spec, val, param)
+            p._set_step_value(ch, step, param, coerced, param)
     except ValueError as exc:
         print(f"Parameter error: {exc}")
         return
+    shown_value = p.get_step(ch, step)[spec.display_name][0]
     out = out_path or path
     p.save(out)
-    print(f"Set {param} ch{ch+1} step{step+1} = {val}  →  saved to {out}")
+    print(f"Set {param} ch{ch+1} step{step+1} = {shown_value}  →  saved to {out}")
 
 
 def cmd_build(json_path, out_path):

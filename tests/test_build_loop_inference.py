@@ -1,6 +1,11 @@
+import io
+import tempfile
 import unittest
+from contextlib import redirect_stdout
+from pathlib import Path
 
-from src.fluxmo.preset import FluxPreset
+from main import cmd_set
+from src.fluxmo.preset import FluxPreset, curve_name
 
 
 class BuildLoopInferenceTests(unittest.TestCase):
@@ -114,6 +119,38 @@ class BuildLoopInferenceTests(unittest.TestCase):
 
         self.assertEqual(list(raw[0x0200:0x020C]), [1, 0, 0, 0, 0, 3, 0, 0, 2, 0, 0, 0])
         self.assertEqual(list(raw[0x0080:0x008C]), [4, 1, 1, 1, 1, 8, 1, 1, 6, 1, 1, 1])
+
+    def test_curve_labels_map_to_likely_curve_block(self):
+        preset = FluxPreset.from_dict({
+            'channels': [
+                {'steps': [{'curv': '1'}, {'curv': 2.3}, {'curv': 'NL3.2'}]},
+            ],
+        })
+
+        raw = preset.to_bytes()
+
+        self.assertEqual(list(raw[0x0280:0x028C]), [0, 0, 0, 0, 4, 0, 0, 0, 50, 0, 0, 0])
+        self.assertEqual(curve_name(0), '1')
+        self.assertEqual(curve_name(4), '2.3')
+        self.assertEqual(curve_name(50), 'NL3.2')
+        self.assertEqual(curve_name(57), 'NL4.4')
+
+    def test_probe_a_parses_as_nl32_curve(self):
+        preset = FluxPreset.from_file('data/FLUX/PROBE_A_.TXT')
+
+        self.assertEqual(preset.get_step(0, 0)['CURV'][0], 'NL3.2')
+        self.assertEqual(preset.get_step(3, 15)['CURV'][0], 'NL3.2')
+
+    def test_cli_set_curv_coerces_curve_labels_before_save(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_path = Path(tmpdir) / 'curve-set.TXT'
+            with redirect_stdout(io.StringIO()):
+                cmd_set('data/FLUX/PROBE_A_.TXT', 'curv', '1', '1', '2.3', str(out_path))
+
+            preset = FluxPreset.from_file(str(out_path))
+
+        self.assertEqual(preset.tm_curv[0][0], 4)
+        self.assertEqual(preset.get_step(0, 0)['CURV'][0], '2.3')
 
 
 if __name__ == '__main__':

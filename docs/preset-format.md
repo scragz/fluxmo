@@ -48,8 +48,10 @@ Each entry covers all 64 step slots. Unless noted, each is 64 bytes (1 byte/slot
 | 0x00C0        | 1         | uint8     | AUX2    | 1 (ON)  | LIKELY    | AUX output 2 mode index (see AUX Mode Table). v1/v2 show full variation; v3 corpus all=1=ON. |
 | 0x0100–0x01FF | —         | —         | MASK?   | 0       | UNCERTAIN | 256 bytes with sparse bitmask-like values (0x33, 0x40, 0xC0). Candidates: MASK + MSK> as uint8 bitmasks. |
 | 0x0200        | 1         | uint8     | DENS    | 1       | CONFIRMED | Trigger density (0–64 gates per step). |
-| 0x0240        | 1         | uint8     | (unk)   | 0       | UNCERTAIN | Sparse: value 50 at specific steps in 1 preset (MAC0204). COMP candidate? |
-| 0x0280–0x033F | —         | —         | (unk)   | 0       | UNCERTAIN | Three mostly-zero 64-byte blocks. Controlled probe presets (`data/FLUX/PROBE_A_.TXT`..`PROBE_C_.TXT`) set each block to `50` independently, so these remain strong candidates for per-step `CURV`, `COMP`, and `DIFF`. |
+| 0x0240        | 1         | uint8     | COMP?   | 0       | UNCERTAIN | Sparse signed-looking values in older presets and value `50` in `MAC0204_.TXT`. Strong compression/expansion candidate. |
+| 0x0280        | 1         | uint8     | CURV    | 0 (`1`) | LIKELY    | `PROBE_A_.TXT` differs from default only in this block, with every slot set to `50` (`NL3.2` under the current label ordering). Manual confirms `CURV` is per-step. Corpus values currently top out at `4.5`; higher labels come from the manual order rather than saved files. |
+| 0x02C0        | 1         | uint8     | VAL?    | 0       | UNCERTAIN | Older presets show sparse signed-looking values here (`-30`, `-20`, `-2`, `50` if interpreted as int8). Strong TM value candidate. |
+| 0x0300        | 1         | uint8     | DIFF?   | 0       | UNCERTAIN | `PROBE_C_.TXT` toggles only this block. Real presets are otherwise all zero so far, matching the user's "DIFF is always zero" observation. |
 | 0x0340        | 1         | uint8     | HUMA    | 0       | LIKELY    | Humanize amount (0–127). Values 20–100 seen in corpus. |
 | 0x0380–0x03FF | 2         | uint16 LE | PHAS    | 0       | CONFIRMED | Phase shift in degrees (0–360). 128 bytes = 64 × uint16. |
 | 0x0400        | 1         | uint8     | CVSEL   | 0       | UNCERTAIN | LFO CV source selector (0–9 range seen). |
@@ -71,7 +73,7 @@ Each entry covers all 64 step slots. Unless noted, each is 64 bytes (1 byte/slot
 | AUX1      | 0–119      | Unlocated | Previously mapped to `0x0A00`, but that block is now identified as loop control. |
 | COMP      | −99..+99   | Signed, used occasionally. Zero in all 87 corpus files. |
 | DIFF      | 0          | Always zero per user. |
-| CURV      | enumerated | Unlocated. Manual confirms this is a **per-step** RHYTHMS parameter. Candidates currently include `0x0240`, `0x0280`, `0x02C0`, and `0x0300`. |
+| CURV      | enumerated | Likely at `0x0280` as a uint8 per step. Current working label order: `1`, `2.0..8.5`, `NL2.0..NL4.4`. Saved presets seen so far only reach `4.5`; the higher labels are manual-derived and still need more device validation. |
 | MASK      | bitmask    | Likely in 0x0100–0x01FF region. |
 | MSK>      | (unknown)  | Mask shift parameter. |
 | VAL       | (unknown)  | Shown on RHYTHMS page, meaning unclear. |

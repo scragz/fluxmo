@@ -64,6 +64,17 @@ def mod_bus_full(val: int) -> str:
 
 CHANNEL_COUNT = 4
 STEPS_PER_CHANNEL = 16
+CURVE_LABELS = (
+    ['1']
+    + [f'{major}.{minor}' for major in range(2, 9) for minor in range(0, 6)]
+    + [f'NL{major}.{minor}' for major in range(2, 5) for minor in range(0, 5)]
+)
+
+
+def curve_name(idx: int) -> str:
+    if 0 <= idx < len(CURVE_LABELS):
+        return CURVE_LABELS[idx]
+    return f'UNKNOWN({idx})'
 
 
 @dataclass(frozen=True)
@@ -108,8 +119,9 @@ STEP_ARRAYS_U8 = {
     # 0x0100–0x01FF: 256 bytes, sparse [0, 51, 64, 192] — bitmask pattern.
     #   Candidates: MASK (8-bit bitmask per step), MSK> (mask shift).
     0x0200: ('DENS',     'CONFIRMED'),   # Trigger density (0–64 gates/step). Default=1.
-    # 0x0240: values [0, 50] in 2 presets. Unknown — possible COMP or MSK>.
-    # 0x0280–0x033F: all zero in all 87 presets. Candidates: COMP, DIFF, CURV.
+    # 0x0240: sparse signed-looking values in corpus. Strong COMP candidate.
+    0x0280: ('CURV',     'LIKELY'),      # Probe A toggles only this 64-byte block. Per-step curve selector; label order inferred from the manual and corpus.
+    # 0x02C0, 0x0300: still unresolved; likely VAL / DIFF or related TM parameters.
     0x0340: ('HUMA',     'LIKELY'),      # Humanize (0–127). Default=0.
     # 0x0380–0x03FF: PHAS — see OFFSET_PHAS below (uint16 LE, 128 bytes)
     0x0400: ('CVSEL',    'UNCERTAIN'),   # LFO CV source select (0–9 enum). Default=0.
@@ -321,6 +333,7 @@ STEP_PARAM_SPECS = {
     'loop': ParamSpec('loop', 'u8', 'LIKELY', 1, 1, 16, 'LOOP'),
     'gate': ParamSpec('gate', 'u8', 'LIKELY', 10, 0, 99, 'GATE%', ('gate%',)),
     'dens': ParamSpec('dens', 'u8', 'CONFIRMED', 1, 0, 64, 'DENS'),
+    'curv': ParamSpec('tm_curv', 'u8', 'LIKELY', 0, 0, len(CURVE_LABELS) - 1, 'CURV', ('curve',)),
     'leng': ParamSpec('leng', 'u8', 'CONFIRMED', 1, 1, 32, 'LENG', ('length',)),
     'aux2': ParamSpec('aux2', 'u8', 'LIKELY', 1, 0, len(AUX_MODES) - 1, 'AUX2'),
     'huma': ParamSpec('huma', 'u8', 'LIKELY', 0, 0, 127, 'HUMA'),
@@ -412,6 +425,40 @@ def _parse_mod_bus(value):
     return total
 
 
+def _parse_curve(value):
+    if isinstance(value, bool):
+        return value
+
+    lookup = {label.upper(): idx for idx, label in enumerate(CURVE_LABELS)}
+
+    if isinstance(value, str):
+        raw = value.strip().upper()
+        if raw in {'1', '1.0'}:
+            return 0
+        if raw.isdigit():
+            n = int(raw)
+            if 2 <= n <= 8:
+                raw = f'{n}.0'
+        if raw in lookup:
+            return lookup[raw]
+        raise ValueError(f"unknown CURV label '{value}'")
+
+    if isinstance(value, int):
+        if value == 1:
+            return 0
+        if 2 <= value <= 8:
+            return lookup[f'{value}.0']
+        raise ValueError(f"unknown CURV numeric value '{value}'")
+
+    if isinstance(value, float):
+        rounded = round(value, 1)
+        if abs(value - rounded) > 1e-9:
+            raise ValueError(f"unknown CURV numeric value '{value}'")
+        return _parse_curve(f'{rounded:.1f}')
+
+    return value
+
+
 # ---------------------------------------------------------------------------
 # FluxPreset
 # ---------------------------------------------------------------------------
@@ -437,6 +484,7 @@ class FluxPreset:
         self.leng     = [[STEP_PARAM_SPECS['leng'].default] * STEPS_PER_CHANNEL for _ in range(CHANNEL_COUNT)]
         self.aux2     = [[STEP_PARAM_SPECS['aux2'].default] * STEPS_PER_CHANNEL for _ in range(CHANNEL_COUNT)]
         self.dens     = [[STEP_PARAM_SPECS['dens'].default] * STEPS_PER_CHANNEL for _ in range(CHANNEL_COUNT)]
+        self.tm_curv  = [[STEP_PARAM_SPECS['curv'].default] * STEPS_PER_CHANNEL for _ in range(CHANNEL_COUNT)]
         self.huma     = [[STEP_PARAM_SPECS['huma'].default] * STEPS_PER_CHANNEL for _ in range(CHANNEL_COUNT)]
         self.phas     = [[STEP_PARAM_SPECS['phas'].default] * STEPS_PER_CHANNEL for _ in range(CHANNEL_COUNT)]
         self.cvsel    = [[STEP_PARAM_SPECS['cvsel'].default] * STEPS_PER_CHANNEL for _ in range(CHANNEL_COUNT)]
@@ -629,6 +677,8 @@ class FluxPreset:
     def _coerce_value(self, spec: ParamSpec, value, path: str) -> int | float:
         if spec.attr == 'aux2':
             value = _parse_aux_mode(value)
+        elif spec.attr == 'tm_curv':
+            value = _parse_curve(value)
         elif spec.attr == 'mod_bus':
             value = _parse_mod_bus(value)
         elif spec.attr == 's_h' and isinstance(value, bool):
@@ -651,11 +701,11 @@ class FluxPreset:
 
     def _set_step_value(self, ch: int, step: int, key: str, value, path: str):
         spec = STEP_PARAM_SPECS[key]
-        getattr(self, spec.attr)[ch][step] = self._coerce_value(spec, value, path)
+        getattr(self, spec.attr)[ch][step] = value
 
     def _set_channel_value(self, ch: int, key: str, value, path: str):
         spec = CHANNEL_PARAM_SPECS[key]
-        getattr(self, spec.attr)[ch] = self._coerce_value(spec, value, path)
+        getattr(self, spec.attr)[ch] = value
 
     def _parse(self):
         d = self.raw
@@ -675,6 +725,7 @@ class FluxPreset:
                 self.leng[ch][step]     = safe_u8(0x0080 + idx)
                 self.aux2[ch][step]     = safe_u8(0x00C0 + idx)
                 self.dens[ch][step]     = safe_u8(0x0200 + idx)
+                self.tm_curv[ch][step]  = safe_u8(0x0280 + idx)
                 self.huma[ch][step]     = safe_u8(0x0340 + idx)
                 self.phas[ch][step]     = safe_u16(OFFSET_PHAS + idx*2)
                 self.cvsel[ch][step]    = safe_u8(0x0400 + idx)
@@ -717,6 +768,7 @@ class FluxPreset:
                 d[0x0080 + idx] = self.leng[ch][step]      & 0xFF
                 d[0x00C0 + idx] = self.aux2[ch][step]      & 0xFF
                 d[0x0200 + idx] = self.dens[ch][step]      & 0xFF
+                d[0x0280 + idx] = self.tm_curv[ch][step]   & 0xFF
                 d[0x0340 + idx] = self.huma[ch][step]      & 0xFF
                 struct.pack_into('<H', d, OFFSET_PHAS + idx*2,
                                  self.phas[ch][step] & 0xFFFF)
@@ -779,6 +831,7 @@ class FluxPreset:
                 print(f"    {name:<8}  " + "  ".join(cells))
 
             row('DENS',     self.dens[ch])
+            row('CURV',     self.tm_curv[ch], mapper=curve_name, width=5)
             row('GATE%',    self.gate[ch])
             row('LENG',     self.leng[ch])
             row('LOOP',     [self._loop_label(ch)] * STEPS_PER_CHANNEL, width=4)
@@ -803,6 +856,7 @@ class FluxPreset:
         return {
             'LOOP':     (self._loop_label(ch),                  'CONFIRMED'),
             'DENS':     (self.dens[ch][step],                   'CONFIRMED'),
+            'CURV':     (curve_name(self.tm_curv[ch][step]),    'LIKELY'),
             'GATE%':    (self.gate[ch][step],                   'LIKELY'),
             'LENG':     (self.leng[ch][step],                   'CONFIRMED'),
             'PHAS_deg': (self.phas[ch][step],                   'CONFIRMED'),
