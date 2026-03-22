@@ -20,7 +20,7 @@ import os
 import sys
 
 from src.fluxmo.pref import FluxPrefs
-from src.fluxmo.preset import FluxPreset, AUX_MODES, STEP_ARRAYS_U8, STEP_PARAM_SPECS, OFFSET_PHAS, OFFSET_MINV, OFFSET_MAXV, OFFSET_FREQ, OFFSET_CH_RECORDS, CH_RECORD_SIZE, CH_PPQN_IDX, CH_VELO_IDX, CH_SH16_IDX, CH_BPM_IDX
+from src.fluxmo.preset import FluxPreset, AUX_MODES, STEP_ARRAYS_U8, STEP_PARAM_SPECS, OFFSET_PHAS, OFFSET_MINV, OFFSET_MAXV, OFFSET_FREQ, OFFSET_CH_RECORDS, CH_RECORD_SIZE, CH_CURV_IDX, CH_VELO_IDX, CH_SH16_IDX, CH_BPM_IDX
 from src.fluxmo.diff import diff_presets, hexdump
 
 
@@ -129,7 +129,7 @@ def cmd_map():
     print(f"  0x{OFFSET_FREQ:04X}   float32 {'FREQ_Hz':<12}  CONFIRMED  (64×4 bytes)")
     print()
     print("Per-channel records (4 × 128 bytes starting at 0x1B80):")
-    print(f"  CH idx  u16[{CH_PPQN_IDX}]=PPQN  u16[{CH_VELO_IDX}]=VELO  u16[{CH_SH16_IDX}]=SH16  u16[{CH_BPM_IDX}]=BPM")
+    print(f"  CH idx  u16[{CH_CURV_IDX}]=CURV  u16[{CH_VELO_IDX}]=VELO  u16[{CH_SH16_IDX}]=SH16  u16[{CH_BPM_IDX}]=BPM")
     print()
     print("AUX mode indices:")
     for i, name in enumerate(AUX_MODES[:30]):
