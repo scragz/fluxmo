@@ -142,7 +142,9 @@ OFFSET_CH_RECORDS = 0x1B80
 CH_RECORD_SIZE = 0x80  # 128 bytes
 
 # Within each 128-byte per-channel record (uint16 LE indices):
-CH_PPQN_IDX  = 19   # CONFIRMED: PPQN=4 matches
+CH_CURV_IDX  = 19   # CONFIRMED: CURV (curve selector), NOT PPQN. Default=4.
+                    # Enumerated display values: 1, 2.0–2.5, 3.0–3.5...8.0, then NN variants.
+                    # PPQN is a global setting in the PREF file, not per-channel in presets.
 CH_VELO_IDX  = 21   # CONFIRMED: VELO=127 matches
 CH_SH16_IDX  = 49   # CONFIRMED: SH16=2 matches
 CH_BPM_IDX   = 60   # LIKELY: value matches PREF BPM
@@ -317,10 +319,13 @@ STEP_PARAM_SPECS = {
 }
 
 CHANNEL_PARAM_SPECS = {
-    'bpm': ParamSpec('bpm', 'u16', 'LIKELY', 120, 0, 65535, 'BPM'),
-    'ppqn': ParamSpec('ppqn', 'u16', 'CONFIRMED', 4, 0, 65535, 'PPQN'),
-    'velo': ParamSpec('velo', 'u16', 'CONFIRMED', 127, 0, 127, 'VELO'),
-    'sh16': ParamSpec('sh16', 'u16', 'CONFIRMED', 2, 0, 65535, 'SH16'),
+    'bpm':  ParamSpec('bpm',  'u16', 'LIKELY',    120, 0, 65535, 'BPM'),
+    # CURV: curve selector. Display values: 1, 2.0–2.5, 3.0–3.5…8.0, then NN variants.
+    # Corpus default is index 4. Only enumerated indices show named labels on device.
+    # NOTE: this is NOT PPQN — PPQN is a global setting in the PREF file.
+    'curv': ParamSpec('curv', 'u16', 'CONFIRMED',   4, 0, 65535, 'CURV'),
+    'velo': ParamSpec('velo', 'u16', 'CONFIRMED', 127, 0, 127,   'VELO'),
+    'sh16': ParamSpec('sh16', 'u16', 'CONFIRMED',   2, 0, 65535, 'SH16'),
 }
 
 
@@ -419,8 +424,8 @@ class FluxPreset:
         self.quan     = [[STEP_PARAM_SPECS['quan'].default] * STEPS_PER_CHANNEL for _ in range(CHANNEL_COUNT)]
         self.aux1     = [[STEP_PARAM_SPECS['aux1'].default] * STEPS_PER_CHANNEL for _ in range(CHANNEL_COUNT)]
         # per-channel (from channel records at 0x1B80)
-        self.bpm      = [CHANNEL_PARAM_SPECS['bpm'].default] * CHANNEL_COUNT
-        self.ppqn     = [CHANNEL_PARAM_SPECS['ppqn'].default] * CHANNEL_COUNT
+        self.bpm      = [CHANNEL_PARAM_SPECS['bpm'].default]  * CHANNEL_COUNT
+        self.curv     = [CHANNEL_PARAM_SPECS['curv'].default] * CHANNEL_COUNT
         self.velo     = [CHANNEL_PARAM_SPECS['velo'].default] * CHANNEL_COUNT
         self.sh16     = [CHANNEL_PARAM_SPECS['sh16'].default] * CHANNEL_COUNT
 
@@ -643,7 +648,7 @@ class FluxPreset:
             base = OFFSET_CH_RECORDS + ch * CH_RECORD_SIZE
             if base + CH_RECORD_SIZE <= len(d):
                 self.bpm[ch]  = safe_u16(base + CH_BPM_IDX  * 2)
-                self.ppqn[ch] = safe_u16(base + CH_PPQN_IDX * 2)
+                self.curv[ch] = safe_u16(base + CH_CURV_IDX * 2)
                 self.velo[ch] = safe_u16(base + CH_VELO_IDX * 2)
                 self.sh16[ch] = safe_u16(base + CH_SH16_IDX * 2)
 
@@ -675,7 +680,7 @@ class FluxPreset:
             base = OFFSET_CH_RECORDS + ch * CH_RECORD_SIZE
             if base + CH_RECORD_SIZE <= len(d):
                 struct.pack_into('<H', d, base + CH_BPM_IDX  * 2, self.bpm[ch])
-                struct.pack_into('<H', d, base + CH_PPQN_IDX * 2, self.ppqn[ch])
+                struct.pack_into('<H', d, base + CH_CURV_IDX * 2, self.curv[ch])
                 struct.pack_into('<H', d, base + CH_VELO_IDX * 2, self.velo[ch])
                 struct.pack_into('<H', d, base + CH_SH16_IDX * 2, self.sh16[ch])
 
@@ -697,7 +702,7 @@ class FluxPreset:
         for ch in range(CHANNEL_COUNT):
             ch_name = ['CH1(orange)', 'CH2(green)', 'CH3(blue)', 'CH4(red)'][ch]
             print(f"  ─── {ch_name} ───")
-            print(f"    PPQN: {self.ppqn[ch]}   VELO: {self.velo[ch]}   SH16: {self.sh16[ch]}   (BPM in PREF)")
+            print(f"    CURV: {self.curv[ch]}   VELO: {self.velo[ch]}   SH16: {self.sh16[ch]}   (BPM/PPQN in PREF)")
             print()
 
             hdr = f"    {'':8} " + " ".join(f"S{s+1:02d}" for s in range(STEPS_PER_CHANNEL))

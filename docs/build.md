@@ -52,7 +52,6 @@ This produces a fully valid preset using built-in defaults:
 {
   "channel_defaults": {
     "bpm": 120,
-    "ppqn": 4,
     "velo": 110,
     "sh16": 2
   },
@@ -144,7 +143,7 @@ These fields are accepted in `channel_defaults` and in each channel object.
 | Key | Type | Range | Default | Notes |
 |-----|------|-------|---------|-------|
 | `bpm` | integer | `0..65535` | `120` | Likely mirror of PREF BPM in the per-channel record. |
-| `ppqn` | integer | `0..65535` | `4` | Confirmed. |
+| `curv` | integer | `0..65535` | `4` | Confirmed. Curve selector; enumerated display values: 1, 2.0–2.5, 3.0–3.5…8.0, then NN variants. **Not PPQN** — PPQN is a global setting in the PREF file. |
 | `velo` | integer | `0..127` | `127` | Confirmed MIDI velocity. |
 | `sh16` | integer | `0..65535` | `2` | Confirmed. |
 
@@ -242,7 +241,7 @@ If you omit a field entirely, these built-in defaults are used:
 | Field | Default |
 |-------|---------|
 | `bpm` | `120` |
-| `ppqn` | `4` |
+| `curv` | `4` |
 | `velo` | `127` |
 | `sh16` | `2` |
 

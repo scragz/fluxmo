@@ -48,7 +48,7 @@ Each entry covers all 64 step slots. Unless noted, each is 64 bytes (1 byte/slot
 | 0x0100–0x01FF | —         | —         | MASK?   | 0       | UNCERTAIN | 256 bytes with sparse bitmask-like values (0x33, 0x40, 0xC0). Candidates: MASK + MSK> as uint8 bitmasks. |
 | 0x0200        | 1         | uint8     | DENS    | 1       | CONFIRMED | Trigger density (0–64 gates per step). |
 | 0x0240        | 1         | uint8     | (unk)   | 0       | UNCERTAIN | Sparse: value 50 at specific steps in 1 preset (MAC0204). COMP candidate? |
-| 0x0280–0x033F | —         | —         | (unk)   | 0       | UNCERTAIN | Three all-zero 64-byte blocks across all 87 files. Candidates for COMP (−99..+99 signed), DIFF (always 0 per user), CURV. |
+| 0x0280–0x033F | —         | —         | (unk)   | 0       | UNCERTAIN | Three all-zero 64-byte blocks across all 87 files. Candidates: COMP (−99..+99 signed), DIFF (always 0 per user). CURV is now confirmed at channel record index 19 — not here. |
 | 0x0340        | 1         | uint8     | HUMA    | 0       | LIKELY    | Humanize amount (0–127). Values 20–100 seen in corpus. |
 | 0x0380–0x03FF | 2         | uint16 LE | PHAS    | 0       | CONFIRMED | Phase shift in degrees (0–360). 128 bytes = 64 × uint16. |
 | 0x0400        | 1         | uint8     | CVSEL   | 0       | UNCERTAIN | LFO CV source selector (0–9 range seen). |
@@ -70,7 +70,7 @@ Each entry covers all 64 step slots. Unless noted, each is 64 bytes (1 byte/slot
 | AUX1      | 0–119      | Found at 0x0A00 (Section B, see below) |
 | COMP      | −99..+99   | Signed, used occasionally. Zero in all 87 corpus files. |
 | DIFF      | 0          | Always zero per user. |
-| CURV      | (unknown)  | TM curve type. Possibly at 0x0280-0x033F (default=1, all-zero in corpus if default stored as 0?). |
+| CURV      | enumerated | **Confirmed** at channel record index 19 (+0x26). Default=4. Display values: 1, 2.0–2.5, 3.0–3.5…8.0, then NN variants. See channel record table above. |
 | MASK      | bitmask    | Likely in 0x0100–0x01FF region. |
 | MSK>      | (unknown)  | Mask shift parameter. |
 | VAL       | (unknown)  | Shown on RHYTHMS page, meaning unclear. |
@@ -144,7 +144,7 @@ These are encoded as `SECTION_B_REQUIRED` in `src/fluxmo/preset.py` and applied 
 | 16        | +0x20      | (unknown)    | 0xFF9C (−100 i16) | UNCERTAIN | Constant. |
 | 17        | +0x22      | (unknown)    | 99      | UNCERTAIN | Constant. |
 | 18        | +0x24      | (required)   | 1       | CONFIRMED | Must be 1. Device hangs on boot if 0. |
-| 19        | +0x26      | PPQN         | 4       | CONFIRMED | |
+| 19        | +0x26      | CURV         | 4       | CONFIRMED | Curve selector, NOT PPQN. Enumerated display values: 1, 2.0–2.5, 3.0–3.5…8.0, then NN variants. PPQN is a global setting in the PREF file — there is no per-channel PPQN in preset files. |
 | 21        | +0x2A      | VELO         | 127     | CONFIRMED | |
 | 23        | +0x2E      | (unknown)    | 17      | UNCERTAIN | Constant. |
 | 25        | +0x32      | (unknown)    | 64      | UNCERTAIN | Constant. |
