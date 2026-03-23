@@ -1,6 +1,5 @@
-import React from "react";
-import { PresetState, L3Transform } from "../pipeline/types";
 import { getDensityDeltaMatrix } from "../pipeline/rhythm";
+import { L3Transform, PresetState } from "../pipeline/types";
 import {
   CARD,
   LayerControlPanel,
@@ -45,7 +44,7 @@ export function L3Energy({ state, baseState, onTransform, transforms }: Props) {
             <span>+ drive</span>
           </div>
         </div>
-        
+
         <div className={`${CARD} flex items-center justify-between`}>
           <span className={SECTION_LABEL}>Ch Offset</span>
           <div className={SEGMENTED_GROUP}>
@@ -179,8 +178,8 @@ function EnergyStepControl({
         <div className="absolute inset-y-2 left-[0.62rem] w-px bg-zinc-700" />
         <div className="absolute left-2 top-1/2 w-3 -translate-y-1/2 border-t border-dashed border-zinc-600" />
         <div className={`absolute left-[0.28rem] h-4 w-3 rounded-full border border-white/20 bg-zinc-950 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] ${colorClass}`} style={{ top: `calc(${thumbPosition} - 0.5rem)` }}>
-          <div className="absolute inset-y-[3px] left-[5px] w-px bg-current/80" />
-          <div className="absolute inset-y-[3px] left-[7px] w-px bg-current/50" />
+          <div className="absolute inset-y-0.75 left-1.25 w-px bg-current/80" />
+          <div className="absolute inset-y-0.75 left-1.75 w-px bg-current/50" />
         </div>
         <div className="absolute inset-y-2 right-[0.38rem] flex flex-col items-center justify-between">
           {Array.from({ length: dotCount }).map((_, index) => (

@@ -276,7 +276,7 @@ export default function App() {
             )}
 
             {controlsOpen && (
-              <div className="pointer-events-auto w-full max-w-[26rem] overflow-hidden rounded-[28px] border border-white/10 bg-zinc-950/66 shadow-[0_30px_80px_rgba(0,0,0,0.42)] backdrop-blur-2xl">
+              <div className="pointer-events-auto w-full max-w-104 overflow-hidden rounded-[28px] border border-white/10 bg-zinc-950/66 shadow-[0_30px_80px_rgba(0,0,0,0.42)] backdrop-blur-2xl">
                 <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
                   <div>
                     <p className="text-[10px] font-mono uppercase tracking-[0.32em] text-zinc-400">Live Controls</p>
