@@ -6,6 +6,7 @@ export function computeL2(l1State: PresetState, transforms: L2Transform[]): Pres
 
   let phases = [0, 0, 0, 0];
   let drifts = [0, 0, 0, 0];
+  let phaseCrunch = false;
 
   for (const t of transforms) {
     if (t.type === "set_phase") {
@@ -20,13 +21,16 @@ export function computeL2(l1State: PresetState, transforms: L2Transform[]): Pres
       } else if (t.mode === "golden") {
         phases = [0, 137.5, 275, 52.5];
       }
+    } else if (t.type === "set_phase_crunch") {
+      phaseCrunch = t.enabled;
     }
   }
 
   state.channels.forEach((channel, c) => {
     channel.steps.forEach((step, i) => {
-      step.phas = Math.round(phases[c] + i * drifts[c]) % 360;
-      if (step.phas < 0) step.phas += 360;
+      const phase = phases[c] + i * drifts[c];
+      step.phas = Math.max(0, Math.min(360, Math.round(phase)));
+      step.comp = phaseCrunch ? Math.round((step.phas / 360) * 99) : 0;
     });
   });
 

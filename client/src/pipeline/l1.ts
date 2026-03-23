@@ -23,7 +23,7 @@ export function computeL1(transforms: L1Transform[]): PresetState {
   const range = Math.max(1, maxRatio - minRatio);
 
   const channels = ratios.map((ratio, c) => {
-    const loopLength = clamp(ratio, 1, 16);
+    const loopLength = clamp(Math.round((baseLoop * ratio) / 4), 1, 16);
     
     // DENS baseline fraction
     let fraction = 0.25;
@@ -36,7 +36,7 @@ export function computeL1(transforms: L1Transform[]): PresetState {
     // LENG per channel
     let leng = 1;
     if (lengMap === "fill") {
-      leng = Math.max(1, Math.floor(baseLoop / ratio));
+      leng = Math.max(1, Math.floor(baseLoop / loopLength));
     } else if (lengMap === "long") {
       leng = baseLoop;
     }

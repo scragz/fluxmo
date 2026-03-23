@@ -38,13 +38,14 @@ export type L1Transform =
 export type L2Transform =
   | { type: "set_phase"; channel: 0 | 1 | 2 | 3; degrees: number }
   | { type: "set_drift"; channel: 0 | 1 | 2 | 3; degrees_per_step: number }
-  | { type: "set_phase_all"; mode: "unison" | "spread" | "golden" };
+  | { type: "set_phase_all"; mode: "unison" | "spread" | "golden" }
+  | { type: "set_phase_crunch"; enabled: boolean };
 
 export type L3Transform =
   | { type: "set_texture_point"; channel: 0 | 1 | 2 | 3; step: number; curv: number; val: number }
   | { type: "set_texture_path"; channel: 0 | 1 | 2 | 3; points: Array<{ curv: number; val: number }> }
-  | { type: "set_busyness"; channel: 0 | 1 | 2 | 3; step: number; fraction: number }
-  | { type: "set_busyness_all"; channel: 0 | 1 | 2 | 3; fraction: number }
+  | { type: "set_density_delta"; channel: 0 | 1 | 2 | 3; step: number; amount: number }
+  | { type: "set_density_delta_all"; channel: 0 | 1 | 2 | 3; amount: number }
   | { type: "set_channel_offset"; enabled: boolean }
   | { type: "set_huma"; channel: 0 | 1 | 2 | 3; value: number };
 

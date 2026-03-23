@@ -8,8 +8,11 @@ interface Props {
 }
 
 export function L1Lattice({ state, onTransform, transforms }: Props) {
-  // We can infer current ratios from loop lengths
-  const ratios = state.channels.map(c => c.steps.length);
+  const ratios = transforms.reduce<number[]>((current, transform) => {
+    if (transform.type === "set_ratios") return [...transform.ratios];
+    return current;
+  }, [4, 4, 4, 4]);
+  const stepCounts = state.channels.map(c => c.steps.length);
   
   let baseLoop = 4;
   for (const t of transforms) {
@@ -24,7 +27,7 @@ export function L1Lattice({ state, onTransform, transforms }: Props) {
 
   const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
   const lcm = (a: number, b: number): number => (a * b) / gcd(a, b);
-  const totalLcm = ratios.reduce((acc, val) => lcm(acc, val), 1);
+  const totalLcm = stepCounts.reduce((acc, val) => lcm(acc, val), 1);
 
   return (
     <div className="p-4">
@@ -47,6 +50,7 @@ export function L1Lattice({ state, onTransform, transforms }: Props) {
                 }`}>
                   {r}
                 </div>
+                <span className="mt-1 text-[9px] font-mono text-zinc-600">{stepCounts[i]} st</span>
                 <button
                   onClick={() => handleRatioChange(i, -1)}
                   className="text-zinc-500 hover:text-white px-2 py-1 text-xs"

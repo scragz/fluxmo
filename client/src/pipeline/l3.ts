@@ -4,8 +4,7 @@ import { clamp } from "./defaults";
 export function computeL3(l2State: PresetState, transforms: L3Transform[]): PresetState {
   const state = JSON.parse(JSON.stringify(l2State)) as PresetState;
 
-  // Track busyness fractions separately so we can apply them to the final dens
-  const busynessFractions: number[][] = state.channels.map(c => c.steps.map(() => 0.5));
+  const densityDeltas: number[][] = state.channels.map(c => c.steps.map(() => 0));
   let channelOffsetEnabled = false;
   const humas = [0, 0, 0, 0];
   const texturePaths: Array<{curv: number, val: number}[]> = state.channels.map(c => c.steps.map(() => ({curv: 1, val: 0})));
@@ -15,10 +14,10 @@ export function computeL3(l2State: PresetState, transforms: L3Transform[]): Pres
       texturePaths[t.channel][t.step] = { curv: t.curv, val: t.val };
     } else if (t.type === "set_texture_path") {
       texturePaths[t.channel] = [...t.points];
-    } else if (t.type === "set_busyness") {
-      busynessFractions[t.channel][t.step] = t.fraction;
-    } else if (t.type === "set_busyness_all") {
-      busynessFractions[t.channel] = busynessFractions[t.channel].map(() => t.fraction);
+    } else if (t.type === "set_density_delta") {
+      densityDeltas[t.channel][t.step] = t.amount;
+    } else if (t.type === "set_density_delta_all") {
+      densityDeltas[t.channel] = densityDeltas[t.channel].map(() => t.amount);
     } else if (t.type === "set_channel_offset") {
       channelOffsetEnabled = t.enabled;
     } else if (t.type === "set_huma") {
@@ -48,9 +47,9 @@ export function computeL3(l2State: PresetState, transforms: L3Transform[]): Pres
       step.curv = clamp(Math.round(point.curv), 1, 8);
       step.val = clamp(point.val, -3.0, 3.0);
 
-      // Busyness -> Dens
-      const fraction = busynessFractions[c][i] ?? 0.5;
-      step.dens = clamp(Math.round(fraction * step.leng * 2), 1, Math.min(step.leng * 2, 64));
+      const baseDensity = step.dens;
+      const delta = densityDeltas[c][i] ?? 0;
+      step.dens = clamp(Math.round(baseDensity * (1 + delta)), 0, 64);
       
       // Huma
       step.huma = clamp(humas[c], 0, 64);
