@@ -1,7 +1,7 @@
 """Cloudflare Worker entrypoint for building FLUX preset binaries in memory."""
 
-from js import JSON
-from workers import Response, WorkerEntrypoint
+from js import JSON  # type: ignore[import-not-found]
+from workers import Response, WorkerEntrypoint  # type: ignore[import-not-found]
 
 from fluxmo.preset import build_preset_bytes
 
