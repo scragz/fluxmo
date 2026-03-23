@@ -4,7 +4,7 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from main import cmd_set
+from main import cmd_probe_copy, cmd_probe_fill, cmd_probe_set, cmd_set
 from src.fluxmo.preset import FluxPreset, curve_name
 
 
@@ -108,6 +108,49 @@ class BuildLoopInferenceTests(unittest.TestCase):
                 'channel_defaults': {'curv': 4},
             })
 
+    def test_curv_serializes_to_00c0_step_major_enum(self):
+        preset = FluxPreset.from_dict({
+            'channels': [
+                {},
+                {},
+                {'steps': [{}, {'curv': '2.1'}]},
+            ],
+        })
+
+        raw = preset.to_bytes()
+
+        self.assertEqual(raw[0x00C0 + 6], 0x03)
+        self.assertEqual(preset.get_step(2, 1)['CURV'][0], '2.1')
+
+    def test_curv_parses_from_00c0_step_major_enum(self):
+        preset = FluxPreset()
+        raw = bytearray(preset.to_bytes())
+        raw[0x00C0 + 6] = 0x02
+
+        parsed = FluxPreset()
+        parsed.raw = raw
+        parsed._parse()
+
+        self.assertEqual(parsed.tm_curv[2][1], 0x01)
+        self.assertEqual(parsed.get_step(2, 1)['CURV'][0], '2.0')
+
+    def test_cmd_set_curv_writes_00c0(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_path = Path(tmpdir) / 'set-curv.TXT'
+            with redirect_stdout(io.StringIO()):
+                cmd_set(
+                    'data/2024-09-15/DEFAULT_.TXT',
+                    'curv',
+                    '3',
+                    '2',
+                    '2.1',
+                    str(out_path),
+                )
+
+            raw = Path(out_path).read_bytes()
+
+        self.assertEqual(raw[0x00C0 + 6], 0x03)
+
     def test_leng_must_be_between_1_and_32(self):
         with self.assertRaisesRegex(ValueError, 'must be >= 1'):
             FluxPreset.from_dict({
@@ -138,6 +181,7 @@ class BuildLoopInferenceTests(unittest.TestCase):
         preset = FluxPreset.from_dict({'channels': []})
         raw = preset.to_bytes()
 
+        self.assertEqual(raw[0x00C0:0x0100], bytes([0x01]) * 64)
         self.assertEqual(raw[0x0EC0:0x0ED0], bytes([0xC8]) * 16)
         self.assertEqual(raw[0x1BFC:0x1C00], bytes([0xC8, 0x00, 0xC8, 0x00]))
         self.assertEqual(raw[0x1C7C:0x1C80], bytes([0xC8, 0x00, 0xC8, 0x00]))
@@ -174,37 +218,109 @@ class BuildLoopInferenceTests(unittest.TestCase):
         self.assertEqual(preset.huma[0][0], 0)
         self.assertEqual(preset.maxv[0][0], 8000)
 
-    def test_curve_labels_map_to_likely_curve_block(self):
-        preset = FluxPreset.from_dict({
-            'channels': [
-                {'steps': [{'curv': '1'}, {'curv': 2.3}, {'curv': 'NL3.2'}]},
-            ],
-        })
-
-        raw = preset.to_bytes()
-
-        self.assertEqual(list(raw[0x0280:0x028C]), [0, 0, 0, 0, 4, 0, 0, 0, 50, 0, 0, 0])
+    def test_curve_label_table_shape(self):
         self.assertEqual(curve_name(0), '1')
         self.assertEqual(curve_name(4), '2.3')
         self.assertEqual(curve_name(50), 'NL3.2')
         self.assertEqual(curve_name(57), 'NL4.4')
 
-    def test_probe_a_parses_as_nl32_curve(self):
-        preset = FluxPreset.from_file('data/FLUX/PROBE_A_.TXT')
-
-        self.assertEqual(preset.get_step(0, 0)['CURV'][0], 'NL3.2')
-        self.assertEqual(preset.get_step(3, 15)['CURV'][0], 'NL3.2')
-
-    def test_cli_set_curv_coerces_curve_labels_before_save(self):
+    def test_probe_fill_overwrites_a_raw_64_byte_block(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            out_path = Path(tmpdir) / 'curve-set.TXT'
+            out_path = Path(tmpdir) / 'probe-fill.TXT'
             with redirect_stdout(io.StringIO()):
-                cmd_set('data/FLUX/PROBE_A_.TXT', 'curv', '1', '1', '2.3', str(out_path))
+                cmd_probe_fill('data/2024-09-15/DEFAULT_.TXT', '0x0280', '0x32', str(out_path))
 
-            preset = FluxPreset.from_file(str(out_path))
+            raw = Path(out_path).read_bytes()
 
-        self.assertEqual(preset.tm_curv[0][0], 4)
-        self.assertEqual(preset.get_step(0, 0)['CURV'][0], '2.3')
+        self.assertEqual(raw[0x0280:0x02C0], bytes([0x32]) * 64)
+
+    def test_probe_fill_accepts_multiple_offsets(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_path = Path(tmpdir) / 'probe-fill-multi.TXT'
+            with redirect_stdout(io.StringIO()):
+                cmd_probe_fill(
+                    'data/2024-09-15/DEFAULT_.TXT',
+                    '0x0240,0x0280',
+                    '0x32',
+                    str(out_path),
+                )
+
+            raw = Path(out_path).read_bytes()
+
+        self.assertEqual(raw[0x0240:0x0280], bytes([0x32]) * 64)
+        self.assertEqual(raw[0x0280:0x02C0], bytes([0x32]) * 64)
+
+    def test_probe_set_writes_one_raw_slot_using_step_major_layout(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_path = Path(tmpdir) / 'probe-set-step.TXT'
+            with redirect_stdout(io.StringIO()):
+                cmd_probe_set(
+                    'data/2024-09-15/DEFAULT_.TXT',
+                    '0x0280',
+                    'step',
+                    '3',
+                    '2',
+                    '0x32',
+                    str(out_path),
+                )
+
+            raw = Path(out_path).read_bytes()
+
+        self.assertEqual(raw[0x0280 + 6], 0x32)
+        self.assertEqual(sum(raw[0x0280:0x02C0]), 0x32)
+
+    def test_probe_set_writes_one_raw_slot_using_channel_major_layout(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_path = Path(tmpdir) / 'probe-set-channel.TXT'
+            with redirect_stdout(io.StringIO()):
+                cmd_probe_set(
+                    'data/2024-09-15/DEFAULT_.TXT',
+                    '0x0280',
+                    'channel',
+                    '4',
+                    '1',
+                    '0x32',
+                    str(out_path),
+                )
+
+            raw = Path(out_path).read_bytes()
+
+        self.assertEqual(raw[0x0280 + 48], 0x32)
+
+    def test_probe_copy_copies_selected_range_from_source(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_path = Path(tmpdir) / 'probe-copy-range.TXT'
+            with redirect_stdout(io.StringIO()):
+                cmd_probe_copy(
+                    'data/2024-09-15/DEFAULT_.TXT',
+                    'DEFAULT_.TXT',
+                    '0x00C0:0x40',
+                    str(out_path),
+                )
+
+            raw = Path(out_path).read_bytes()
+            source = Path('DEFAULT_.TXT').read_bytes()
+            base = Path('data/2024-09-15/DEFAULT_.TXT').read_bytes()
+
+        self.assertEqual(raw[0x00C0:0x0100], source[0x00C0:0x0100])
+        self.assertEqual(raw[0x0240:0x02C0], base[0x0240:0x02C0])
+
+    def test_probe_copy_accepts_multiple_ranges(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_path = Path(tmpdir) / 'probe-copy-multi.TXT'
+            with redirect_stdout(io.StringIO()):
+                cmd_probe_copy(
+                    'data/2024-09-15/DEFAULT_.TXT',
+                    'DEFAULT_.TXT',
+                    '0x00C0:0x40,0x1BAA:0x2',
+                    str(out_path),
+                )
+
+            raw = Path(out_path).read_bytes()
+            source = Path('DEFAULT_.TXT').read_bytes()
+
+        self.assertEqual(raw[0x00C0:0x0100], source[0x00C0:0x0100])
+        self.assertEqual(raw[0x1BAA:0x1BAC], source[0x1BAA:0x1BAC])
 
 
 if __name__ == '__main__':

@@ -39,11 +39,11 @@ Each entry covers all 64 step slots. Unless noted, each is 64 bytes (1 byte/slot
 | 0x0000        | 1         | uint8     | LOOP    | 1       | UNCERTAIN | Legacy per-step mirror of loop end. Hardware loop UI does **not** follow this field; current firmware uses the control bytes at `0x0A00..0x0A07`. |
 | 0x0040        | 1         | uint8     | GATE    | 10      | LIKELY    | Trigger length % (0–99). Values 10–90 in corpus. |
 | 0x0080        | 1         | uint8     | LENG    | 1       | CONFIRMED | Step length in 16ths. Device-saved presets show values from 1 up to 32; `1` displays as `1/16`. |
-| 0x00C0        | 1         | uint8     | (unk)   | 1       | UNCERTAIN | Constant-looking block in v3 corpus. Older AUX2 assumptions removed. |
+| 0x00C0        | 1         | uint8     | CURV    | 1 (`1`) | CONFIRMED | Step-major curve enum. Device probes: `0x01 = 1`, `0x02 = 2.0`, `0x03 = 2.1`; `0x00` decodes as an invalid `PPQN64`-like value. |
 | 0x0100–0x01FF | —         | —         | MASK?   | 0       | UNCERTAIN | 256 bytes with sparse bitmask-like values (0x33, 0x40, 0xC0). Candidates: MASK + MSK> as uint8 bitmasks. |
 | 0x0200        | 1         | uint8     | DENS    | 1       | CONFIRMED | Trigger density (0–64 gates per step). |
 | 0x0240        | 1         | uint8     | COMP?   | 0       | UNCERTAIN | Sparse signed-looking values in older presets and value `50` in `MAC0204_.TXT`. Strong compression/expansion candidate. |
-| 0x0280        | 1         | uint8     | CURV    | 0 (`1`) | LIKELY    | `PROBE_A_.TXT` differs from default only in this block, with every slot set to `50` (`NL3.2` under the current label ordering). Manual confirms `CURV` is per-step. Corpus values currently top out at `4.5`; higher labels come from the manual order rather than saved files. |
+| 0x0280        | 1         | uint8     | (unk)   | 0       | UNCERTAIN | Earlier `CURV` attribution was incorrect. The block may be related to another rhythm parameter or a companion field, but it is not required to set valid curve values on device. |
 | 0x02C0        | 1         | uint8     | VAL?    | 0       | UNCERTAIN | Older presets show sparse signed-looking values here (`-30`, `-20`, `-2`, `50` if interpreted as int8). Strong TM value candidate. |
 | 0x0300        | 1         | uint8     | DIFF?   | 0       | UNCERTAIN | `PROBE_C_.TXT` toggles only this block. Real presets are otherwise all zero so far, matching the user's "DIFF is always zero" observation. |
 | 0x0340        | 1         | uint8     | HUMA    | 0       | LIKELY    | Humanize amount (0–127). Values 20–100 seen in corpus. |
@@ -67,7 +67,7 @@ Each entry covers all 64 step slots. Unless noted, each is 64 bytes (1 byte/slot
 | AUX1      | 0–119      | Candidate array at `0x1900` | Device-saved presets show non-zero AUX-like bytes here. Current working formula is channel-major order rotated left by 4 bytes, which matches `MAC0204_.TXT` (`position 44 = CH4 step1`, `44..59` = full CH4 run). This is now used for read/write as an experimental mapping. |
 | COMP      | −99..+99   | Signed, used occasionally. Zero in all 87 corpus files. |
 | DIFF      | 0          | Always zero per user. |
-| CURV      | enumerated | Likely at `0x0280` as a uint8 per step. Current working label order: `1`, `2.0..8.5`, `NL2.0..NL4.4`. Saved presets seen so far only reach `4.5`; the higher labels are manual-derived and still need more device validation. |
+| CURV      | enumerated | Confirmed at `0x00C0` as a step-major uint8 enum. Current label order in the tool is `1`, `2.0..8.5`, `NL2.0..NL4.4`. |
 | MASK      | bitmask    | Likely in 0x0100–0x01FF region. |
 | MSK>      | (unknown)  | Mask shift parameter. |
 | VAL       | (unknown)  | Shown on RHYTHMS page, meaning unclear. |

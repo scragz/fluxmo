@@ -87,6 +87,7 @@ are preserved byte-for-byte.
 | `loop`    | Loop length 1–16                 | uint8  | 0x0000  | LIKELY    |
 | `gate`    | Trigger length % 0–99            | uint8  | 0x0040  | LIKELY    |
 | `leng`    | Step length in 16ths 1–16        | uint8  | 0x0080  | CONFIRMED |
+| `curv`    | Curve enum                       | uint8  | 0x00C0  | CONFIRMED |
 | `aux1`    | AUX1 mode index (experimental)   | uint8  | 0x1900  | UNCERTAIN |
 | `aux2`    | AUX2 mode index (experimental)   | uint8  | 0x1940  | UNCERTAIN |
 | `dens`    | Trigger density 0–64             | uint8  | 0x0200  | CONFIRMED |
@@ -107,6 +108,9 @@ and `0x1940`. The current working slot formula is channel-major order rotated
 left by 4 bytes, based on corpus evidence including `MAC0204_.TXT` where
 position `44` matches `CH4 step1`.
 
+`curv` is now mapped as a confirmed step-major enum at `0x00C0`. Device probes
+show `0x01 = 1`, `0x02 = 2.0`, and `0x03 = 2.1`.
+
 Example:
 
 ```
@@ -114,6 +118,43 @@ python3 main.py set DEFAULT_.TXT dens 1 3 8 out.TXT
 ```
 
 Sets trigger density to 8 on CH1, step 3, writing to `out.TXT`.
+
+#### `probe-fill` — fill a candidate 64-byte block for device testing
+
+```
+python3 main.py probe-fill <file.TXT> <offsets> <value> [out.TXT]
+```
+
+Fills one or more 64-byte regions with one byte value. Offsets may be
+comma-separated. This is useful for testing mirrored or paired candidate blocks
+on the device.
+
+Example:
+
+```bash
+python3 main.py probe-fill DEFAULT_.TXT 0x00C0 0x02 PROBE_CURV_ALL_2_0.TXT
+python3 main.py probe-fill DEFAULT_.TXT 0x00C0 0x03 PROBE_CURV_ALL_2_1.TXT
+```
+
+#### `probe-set` — write one raw slot in a candidate 64-byte block
+
+```
+python3 main.py probe-set <file.TXT> <offsets> <layout> <ch> <step> <value> [out.TXT]
+```
+
+Layouts:
+
+- `step`: `step*4 + ch`
+- `channel`: `ch*16 + step`
+- `lateaux`: rotated channel-major layout used by the late AUX arrays
+
+Examples:
+
+```bash
+python3 main.py probe-set DEFAULT_.TXT 0x00C0 step 3 2 0x02 PROBE_CURV_S2C3_2_0.TXT
+python3 main.py probe-set DEFAULT_.TXT 0x00C0 step 3 2 0x03 PROBE_CURV_S2C3_2_1.TXT
+python3 main.py probe-set DEFAULT_.TXT 0x00C0 step 4 1 0x02 PROBE_CURV_CH4S1_2_0.TXT
+```
 
 #### `build` — create a new preset from JSON
 

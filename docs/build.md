@@ -166,7 +166,7 @@ These fields are accepted in `step_defaults` and in each step object.
 | `loop` | integer | `1..16` | `1` | — | Channel loop end. The builder writes loop range `1-loop`. If omitted, a non-empty `channels[n].steps` array infers the channel loop end from its entry count. |
 | `gate` | integer | `0..99` | `10` | `gate%` | Trigger length percent. |
 | `dens` | integer | `0..64` | `1` | — | Trigger density. |
-| `curv` | string or number | `1`, `2.0..8.5`, `NL2.0..NL4.4` | `1` | `curve` | Experimental per-step TM curve selector. Likely stored at `0x0280`. String labels are preferred; numeric input is accepted for non-`NL` labels. The current corpus only shows values up to `4.5`; higher labels come from the manual ordering. |
+| `curv` | integer or string | `0..57` | `0` | `curve` | Confirmed curve enum at `0x00C0`, step-major. Accepts numeric indices or labels such as `1`, `2.0`, `2.1`, `NL3.2`. |
 | `leng` | integer | `1..32` | `1` | `length` | Step length in 16ths. Manual text and corpus both show values above 8; `0` is treated as invalid by the builder. |
 | `aux1` | integer or string | `0..112` | `0` | — | Experimental AUX1 mode index or mode name. Written to the late-file AUX block at `0x1900` using the current provisional slot formula. |
 | `aux2` | integer or string | `0..112` | `0` | — | Experimental AUX2 mode index or mode name. Written to the late-file AUX block at `0x1940` using the current provisional slot formula. |
@@ -206,6 +206,20 @@ Examples:
 - `"x|| (XOR)"`
 
 Mode name matching is case-insensitive after normalizing spaces and hyphens.
+
+### `curv`
+
+This field accepts either:
+
+- the raw numeric index, or
+- the exact curve label
+
+Examples:
+
+- `"1"` → `0`
+- `"2.0"` → `1`
+- `"2.1"` → `2`
+- `"NL3.2"` → `50`
 
 ### `mod_bus`
 
@@ -262,7 +276,6 @@ If you omit a field entirely, these built-in defaults are used:
 | `loop` | `1` |
 | `gate` | `10` |
 | `dens` | `1` |
-| `curv` | `1` |
 | `leng` | `1` |
 | `aux1` | `0` (`OFF`) |
 | `aux2` | `0` (`OFF`) |
@@ -352,13 +365,8 @@ Not yet accepted in JSON:
 - Evolve / Macro Pot sections
 
 `AUX1` and `AUX2` are accepted using the current late-file mappings at `0x1900`
-and `0x1940`. The old `0x0A00`/`0x00C0` assumptions are no longer used.
-
-`CURV` is now accepted as an experimental per-step field based on probe preset
-evidence, the manual ordering, and user validation. The binary offset at `0x0280`
-is the current best match. Device-saved corpus files only reach `4.5` so far; the
-rest of the documented `2.x..8.x` and `NL2.x..NL4.x` range still needs more
-hardware validation.
+and `0x1940`. `CURV` is accepted using the confirmed step-major enum block at
+`0x00C0`.
 
 When those offsets are decoded, they can be added to the builder format.
 

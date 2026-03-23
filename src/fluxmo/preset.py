@@ -172,15 +172,15 @@ STEP_ARRAYS_U8 = {
         "LENG",
         "CONFIRMED",
     ),  # Step length in 16ths. Default=1; corpus includes values up to 32.
+    0x00C0: (
+        "CURV",
+        "CONFIRMED",
+    ),  # Curve enum, step-major. 0x01=1, 0x02=2.0, 0x03=2.1. 0x00 decodes invalid on device.
     # 0x0100–0x01FF: VAL — see OFFSET_VAL below (float32 LE, 256 bytes = 64 × f32, step-major).
     #   Default=0.0. Confirmed: MAC0204 CH2 step4 shows "6.00" on display → f32=6.0 at 0x0134.
     0x0200: ("DENS", "CONFIRMED"),  # Trigger density (0–64 gates/step). Default=1.
     # 0x0240: COMP lo byte — CONFIRMED channel-major (ch*16+step), s8. See OFFSET_COMP_LO.
-    #         Device also writes CURV step-major here, causing cross-index display contamination.
-    0x0280: (
-        "CURV",
-        "LIKELY",
-    ),  # Device writes CURV step-major here. Display offset unconfirmed.
+    # 0x0280: unknown/companion block. Earlier CURV attribution was incorrect.
     # 0x02C0: COMP hi byte — CONFIRMED channel-major. 0x00 for COMP in range -99..+99. See OFFSET_COMP_HI.
     #         Writing non-zero causes 4-digit COMP overflow on device display.
     # 0x0300: unknown (all-zero in DEFAULT and corpus).
@@ -564,7 +564,7 @@ STEP_PARAM_SPECS = {
     "gate": ParamSpec("gate", "u8", "LIKELY", 10, 0, 99, "GATE%", ("gate%",)),
     "dens": ParamSpec("dens", "u8", "CONFIRMED", 1, 0, 64, "DENS"),
     "curv": ParamSpec(
-        "tm_curv", "u8", "LIKELY", 0, 0, len(CURVE_LABELS) - 1, "CURV", ("curve",)
+        "tm_curv", "u8", "CONFIRMED", 0, 0, len(CURVE_LABELS) - 1, "CURV", ("curve",)
     ),
     "leng": ParamSpec("leng", "u8", "CONFIRMED", 1, 1, 32, "LENG", ("length",)),
     "aux1": ParamSpec("aux1", "u8", "UNCERTAIN", 0, 0, len(AUX_MODES) - 1, "AUX1"),
@@ -840,6 +840,9 @@ class FluxPreset:
         d[OFFSET_LOOP_END : OFFSET_LOOP_END + len(LOOP_CONTROL_DEFAULT)] = (
             LOOP_CONTROL_DEFAULT
         )
+        # Device-saved defaults keep this 64-byte step-major selector block at 0x01.
+        # Setting it to 0x00 makes the curve UI decode as an invalid PPQN64-like mode.
+        d[0x00C0:0x0100] = bytes([0x01]) * 0x40
         for off, val in SECTION_B_REQUIRED.items():
             d[off] = val
         d[0x1D80 : 0x1D80 + len(REFERENCE_TRAILING)] = REFERENCE_TRAILING
@@ -1069,6 +1072,10 @@ class FluxPreset:
         def safe_f32(off):
             return struct.unpack_from("<f", d, off)[0] if off + 4 <= len(d) else 0.0
 
+        def safe_curve(off):
+            raw = safe_u8(off)
+            return 0xFF if raw == 0 else raw - 1
+
         for ch in range(CHANNEL_COUNT):
             for step in range(STEPS_PER_CHANNEL):
                 idx = self._slot(ch, step)
@@ -1078,7 +1085,7 @@ class FluxPreset:
                 self.aux1[ch][step] = safe_u8(OFFSET_AUX1_CANDIDATE + aux_idx)
                 self.aux2[ch][step] = safe_u8(OFFSET_AUX2_CANDIDATE + aux_idx)
                 self.dens[ch][step] = safe_u8(0x0200 + idx)
-                self.tm_curv[ch][step] = safe_u8(0x0280 + idx)
+                self.tm_curv[ch][step] = safe_curve(0x00C0 + idx)
                 self.val[ch][step] = safe_f32(OFFSET_VAL + idx * 4)
                 ch_idx = ch * STEPS_PER_CHANNEL + step  # channel-major
                 self.comp[ch][step] = safe_s8(OFFSET_COMP_LO + ch_idx)
@@ -1125,7 +1132,7 @@ class FluxPreset:
                 d[OFFSET_AUX1_CANDIDATE + aux_idx] = self.aux1[ch][step] & 0xFF
                 d[OFFSET_AUX2_CANDIDATE + aux_idx] = self.aux2[ch][step] & 0xFF
                 d[0x0200 + idx] = self.dens[ch][step] & 0xFF
-                d[0x0280 + idx] = self.tm_curv[ch][step] & 0xFF
+                d[0x00C0 + idx] = (self.tm_curv[ch][step] + 1) & 0xFF
                 struct.pack_into(
                     "<f", d, OFFSET_VAL + idx * 4, float(self.val[ch][step])
                 )
@@ -1231,7 +1238,7 @@ class FluxPreset:
         return {
             "LOOP": (self._loop_label(ch), "CONFIRMED"),
             "DENS": (self.dens[ch][step], "CONFIRMED"),
-            "CURV": (curve_name(self.tm_curv[ch][step]), "LIKELY"),
+            "CURV": (curve_name(self.tm_curv[ch][step]), "CONFIRMED"),
             "GATE%": (self.gate[ch][step], "LIKELY"),
             "LENG": (self.leng[ch][step], "CONFIRMED"),
             "PHAS_deg": (self.phas[ch][step], "CONFIRMED"),
