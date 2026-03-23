@@ -1,6 +1,6 @@
 import React, { useReducer, useState, useEffect, useRef } from "react";
 import { SlidersHorizontal, X } from "lucide-react";
-import { reducer, initialState, LayerId } from "./store";
+import { reducer, initialState } from "./store";
 import { LayerStrip } from "./ui/LayerStrip";
 import { BottomBar } from "./ui/BottomBar";
 import { JsonDrawer } from "./ui/JsonDrawer";
@@ -9,12 +9,36 @@ import { L1Lattice } from "./ui/L1Lattice";
 import { L2Constellation } from "./ui/L2Constellation";
 import { L3Energy } from "./ui/L3Energy";
 import { serialize } from "./pipeline/serialize";
-import { L3Transform } from "./pipeline/types";
+
+const DEFAULT_EXPORT_ENDPOINT = "/api/export";
+
+function getExportEndpoint(): string {
+  return import.meta.env.VITE_EXPORT_ENDPOINT?.trim() || DEFAULT_EXPORT_ENDPOINT;
+}
+
+function parseDownloadFilename(contentDisposition: string | null, fallbackName: string): string {
+  if (!contentDisposition) {
+    return fallbackName;
+  }
+
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+
+  const asciiMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+  if (asciiMatch) {
+    return asciiMatch[1];
+  }
+
+  return fallbackName;
+}
 
 export default function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [jsonOpen, setJsonOpen] = useState(false);
   const [controlsOpen, setControlsOpen] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -34,23 +58,71 @@ export default function App() {
     return () => observer.disconnect();
   }, []);
 
-  const handleExport = () => {
-    const json = serialize(state.l3State);
-    navigator.clipboard.writeText(json);
-    alert("Copied to clipboard!");
+  const handleExport = async () => {
+    if (isExporting) {
+      return;
+    }
+
+    setIsExporting(true);
+
+    try {
+      const response = await fetch(getExportEndpoint(), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: serialize(state.l3State),
+      });
+
+      if (!response.ok) {
+        let message = `Export failed with status ${response.status}.`;
+        const contentType = response.headers.get("content-type") ?? "";
+
+        try {
+          if (contentType.includes("application/json")) {
+            const payload = await response.json() as { error?: string };
+            if (payload.error) {
+              message = payload.error;
+            }
+          } else {
+            const text = (await response.text()).trim();
+            if (text) {
+              message = text;
+            }
+          }
+        } catch {
+          // Ignore body parse failures and keep the status-based fallback message.
+        }
+
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const fallbackName = `${state.pipeline.name || "preset"}.TXT`;
+
+      link.href = downloadUrl;
+      link.download = parseDownloadFilename(
+        response.headers.get("content-disposition"),
+        fallbackName,
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error("Preset export failed", error);
+      alert(error instanceof Error ? error.message : "Preset export failed.");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
-  const activeState = 
+  const activeState =
     state.activeLayer === "l1" ? state.l1State :
     state.activeLayer === "l2" ? state.l2State :
     state.l3State;
-
-  const offsetTransforms = state.pipeline.layers.l3.filter(t => t.type === "set_channel_offset") as Extract<L3Transform, { type: "set_channel_offset" }>[];
-  const isOffset = offsetTransforms.length > 0 ? offsetTransforms[offsetTransforms.length - 1].enabled : false;
-  const baseLoopTransforms = state.pipeline.layers.l1.filter(t => t.type === "set_base_loop") as Extract<typeof state.pipeline.layers.l1[number], { type: "set_base_loop" }>[];
-  const densMapTransforms = state.pipeline.layers.l1.filter(t => t.type === "set_dens_map") as Extract<typeof state.pipeline.layers.l1[number], { type: "set_dens_map" }>[];
-  const l1BaseLoop = baseLoopTransforms.length > 0 ? baseLoopTransforms[baseLoopTransforms.length - 1].steps : 4;
-  const l1DensMap = densMapTransforms.length > 0 ? densMapTransforms[densMapTransforms.length - 1].mode : "proportional";
 
   const controls = (
     <>
@@ -64,12 +136,14 @@ export default function App() {
       {state.activeLayer === "l2" && (
         <L2Constellation
           state={state.l2State}
+          transforms={state.pipeline.layers.l2}
           onTransform={(t) => dispatch({ type: "ADD_L2_TRANSFORM", transform: t })}
         />
       )}
       {state.activeLayer === "l3" && (
         <L3Energy
           state={state.l3State}
+          baseState={state.l2State}
           transforms={state.pipeline.layers.l3}
           onTransform={(t) => dispatch({ type: "ADD_L3_TRANSFORM", transform: t })}
         />
@@ -95,19 +169,13 @@ export default function App() {
               activeLayer={state.activeLayer}
               width={dimensions.width}
               height={dimensions.height}
-              isOffset={isOffset}
-              l1BaseLoop={l1BaseLoop}
-              l1DensMap={l1DensMap}
-              onL3PointMove={(channel, step, curv, val) => {
+              l2Transforms={state.pipeline.layers.l2}
+              l3BaseState={state.l2State}
+              l3Transforms={state.pipeline.layers.l3}
+              onL3DensityChange={(channel, step, amount) => {
                 dispatch({
                   type: "ADD_L3_TRANSFORM",
-                  transform: { type: "set_texture_point", channel: channel as 0|1|2|3, step, curv, val }
-                });
-              }}
-              onL3PointReset={(channel, step) => {
-                dispatch({
-                  type: "ADD_L3_TRANSFORM",
-                  transform: { type: "set_texture_point", channel: channel as 0|1|2|3, step, curv: 1, val: 0 }
+                  transform: { type: "set_density_delta", channel: channel as 0|1|2|3, step, amount }
                 });
               }}
               onL2PhaseMove={(channel, degrees) => {
@@ -165,6 +233,7 @@ export default function App() {
         onExport={handleExport}
         onUndo={() => dispatch({ type: "UNDO", layer: state.activeLayer })}
         canUndo={state.pipeline.layers[state.activeLayer].length > 0}
+        isExporting={isExporting}
       />
     </div>
   );

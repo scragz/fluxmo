@@ -2,7 +2,6 @@ import { PresetState } from "./types";
 
 export function serialize(state: PresetState): string {
   const json = {
-    version: 1,
     channels: state.channels.map(c => ({
       velo: c.velo,
       sh16: c.sh16,
@@ -15,7 +14,7 @@ export function serialize(state: PresetState): string {
         comp: s.comp,
         huma: s.huma,
         gate: s.gate,
-        prob: s.prob,
+        prob_val: s.prob,
         mod_bus: s.mod_bus,
         aux1: s.aux1,
         aux2: s.aux2,
