@@ -33,7 +33,12 @@ def _json_error(message: str, status: int) -> Response:
 
 
 class Default(WorkerEntrypoint):
-    async def fetch(self, request):
+    async def on_fetch(self, request):
+        from urllib.parse import urlparse
+        path = urlparse(request.url).path
+        if not path.startswith("/api/"):
+            return await self.env.ASSETS.fetch(request)
+
         if request.method == "OPTIONS":
             return Response(None, status=204, headers=_headers())
 
