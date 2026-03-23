@@ -27,8 +27,12 @@ export function getBarLength(channel: ChannelState): number {
   );
 }
 
-export function getStepTimelines(channel: ChannelState): { barLength: number; steps: StepTimeline[] } {
+export function getStepTimelines(
+  channel: ChannelState,
+  options?: { wrapPositions?: boolean },
+): { barLength: number; steps: StepTimeline[] } {
   const barLength = getBarLength(channel);
+  const wrapPositions = options?.wrapPositions ?? false;
   let cursor = 0;
 
   const steps = channel.steps.map((step, index) => {
@@ -52,6 +56,16 @@ export function getStepTimelines(channel: ChannelState): { barLength: number; st
         compression > 0
           ? phaseOffset + basePosition * (1 - compression)
           : start + phaseOffset + localPosition;
+
+      if (wrapPositions) {
+        triggers.push({
+          stepIndex: index,
+          triggerIndex,
+          position: mod(position, barLength),
+          localPosition,
+        });
+        continue;
+      }
 
       if (position <= barLength) {
         triggers.push({ stepIndex: index, triggerIndex, position, localPosition });
@@ -103,4 +117,8 @@ export function getDensityDeltaMatrix(
   }
 
   return deltas;
+}
+
+function mod(value: number, divisor: number): number {
+  return ((value % divisor) + divisor) % divisor;
 }

@@ -1,5 +1,16 @@
 import React from "react";
+import { Minus, Plus } from "lucide-react";
 import { PresetState, L1Transform } from "../pipeline/types";
+import {
+  CARD,
+  ICON_BUTTON,
+  LayerControlPanel,
+  SECTION_LABEL,
+  SEGMENTED_GROUP,
+  VALUE_PILL,
+  channelAccentClass,
+  segmentedButtonClass,
+} from "./controlPanel";
 
 interface Props {
   state: PresetState;
@@ -13,6 +24,10 @@ export function L1Lattice({ state, onTransform, transforms }: Props) {
     return current;
   }, [4, 4, 4, 4]);
   const stepCounts = state.channels.map(c => c.steps.length);
+  const densMapTransform = transforms.filter(t => t.type === "set_dens_map").pop() as Extract<L1Transform, { type: "set_dens_map" }> | undefined;
+  const lengMapTransform = transforms.filter(t => t.type === "set_leng_map").pop() as Extract<L1Transform, { type: "set_leng_map" }> | undefined;
+  const activeDensMap = densMapTransform ? densMapTransform.mode : "proportional";
+  const activeLengMap = lengMapTransform ? lengMapTransform.mode : "fill";
   
   let baseLoop = 4;
   for (const t of transforms) {
@@ -30,76 +45,82 @@ export function L1Lattice({ state, onTransform, transforms }: Props) {
   const totalLcm = stepCounts.reduce((acc, val) => lcm(acc, val), 1);
 
   return (
-    <div className="p-4">
-      <div className="flex w-full flex-col gap-3 rounded-2xl border border-white/10 bg-zinc-900/72 p-4">
-        
-        <div className="flex justify-between items-center">
-          <span className="text-xs font-mono text-zinc-500 w-16">RATIOS</span>
-          <div className="flex gap-2">
-            {ratios.map((r, i) => (
-              <div key={i} className="flex flex-col items-center">
-                <button
-                  onClick={() => handleRatioChange(i, 1)}
-                  className="text-zinc-500 hover:text-white px-2 py-1 text-xs"
-                  aria-label={`Increase ratio channel ${i + 1}`}
-                >
-                  +
-                </button>
-                <div className={`w-8 h-8 flex items-center justify-center rounded bg-zinc-800 font-mono text-sm ${
-                  i === 0 ? "text-orange-500" : i === 1 ? "text-green-500" : i === 2 ? "text-blue-500" : "text-red-500"
-                }`}>
-                  {r}
+    <LayerControlPanel
+      layer="Layer 1"
+      title="Lattice"
+      description="Shape the base loop and lane ratios before the downstream phase and energy edits kick in."
+    >
+        <div className="flex flex-col gap-2">
+          {ratios.map((ratio, i) => (
+            <div
+              key={i}
+              className={`grid grid-cols-[auto_1fr_auto] items-center gap-3 ${CARD} py-2.5`}
+            >
+              <div className="min-w-0">
+                <div className={`text-[11px] font-mono uppercase tracking-[0.22em] ${channelAccentClass(i)}`}>
+                  CH{i + 1}
                 </div>
-                <span className="mt-1 text-[9px] font-mono text-zinc-600">{stepCounts[i]} st</span>
+                <div className="mt-1 text-[10px] font-mono text-zinc-500">{stepCounts[i]} steps</div>
+              </div>
+              <div className="flex items-center justify-center gap-2">
                 <button
                   onClick={() => handleRatioChange(i, -1)}
-                  className="text-zinc-500 hover:text-white px-2 py-1 text-xs"
+                  className={ICON_BUTTON}
                   aria-label={`Decrease ratio channel ${i + 1}`}
                 >
-                  -
+                  <Minus size={14} />
+                </button>
+                <div className={`min-w-12 ${VALUE_PILL} ${channelAccentClass(i)}`}>
+                  {ratio}
+                </div>
+                <button
+                  onClick={() => handleRatioChange(i, 1)}
+                  className={ICON_BUTTON}
+                  aria-label={`Increase ratio channel ${i + 1}`}
+                >
+                  <Plus size={14} />
                 </button>
               </div>
-            ))}
-          </div>
+              <div className="text-right text-[10px] font-mono text-zinc-500">
+                {Math.round((ratio / 4) * 100)}%
+              </div>
+            </div>
+          ))}
         </div>
 
-        <div className="flex justify-between items-center">
-          <span className="text-xs font-mono text-zinc-500 w-16">BASE</span>
-          <div className="flex items-center gap-2">
+        <div className={`grid grid-cols-[auto_1fr] items-center gap-3 ${CARD}`}>
+          <span className={SECTION_LABEL}>Base Loop</span>
+          <div className="flex items-center justify-end gap-2">
             <button
               onClick={() => onTransform({ type: "set_base_loop", steps: Math.max(1, baseLoop - 1) })}
-              className="text-zinc-500 hover:text-white px-2 py-1 text-xs"
+              className={ICON_BUTTON}
               aria-label="Decrease lattice base"
             >
-              -
+              <Minus size={14} />
             </button>
-            <div className="w-12 h-8 flex items-center justify-center rounded bg-zinc-800 font-mono text-sm text-zinc-300">
+            <div className={`min-w-14 ${VALUE_PILL} text-zinc-200`}>
               {baseLoop}
             </div>
             <button
               onClick={() => onTransform({ type: "set_base_loop", steps: Math.min(16, baseLoop + 1) })}
-              className="text-zinc-500 hover:text-white px-2 py-1 text-xs"
+              className={ICON_BUTTON}
               aria-label="Increase lattice base"
             >
-              +
+              <Plus size={14} />
             </button>
           </div>
         </div>
 
-        <div className="flex justify-between items-center">
-          <span className="text-xs font-mono text-zinc-500 w-16">DENS MAP</span>
-          <div className="flex gap-1 bg-zinc-950 p-1 rounded-lg">
+        <div className={`grid grid-cols-[auto_1fr] items-center gap-3 ${CARD}`}>
+          <span className={SECTION_LABEL}>Dens Map</span>
+          <div className={`justify-self-end ${SEGMENTED_GROUP}`}>
             {["proportional", "inverse", "flat"].map(mode => {
-              const densMapTransform = transforms.filter(t => t.type === "set_dens_map").pop() as Extract<L1Transform, { type: "set_dens_map" }> | undefined;
-              const activeDensMap = densMapTransform ? densMapTransform.mode : "proportional";
               return (
                 <button
                   key={mode}
                   onClick={() => onTransform({ type: "set_dens_map", mode: mode as any })}
                   aria-label={`Set density map ${mode}`}
-                  className={`px-2 py-1 rounded text-[10px] font-mono uppercase transition-colors ${
-                    activeDensMap === mode ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white hover:bg-zinc-800"
-                  }`}
+                  className={segmentedButtonClass(activeDensMap === mode)}
                 >
                   {mode.substring(0, 4)}
                 </button>
@@ -108,20 +129,16 @@ export function L1Lattice({ state, onTransform, transforms }: Props) {
           </div>
         </div>
 
-        <div className="flex justify-between items-center">
-          <span className="text-xs font-mono text-zinc-500 w-16">LENG MAP</span>
-          <div className="flex gap-1 bg-zinc-950 p-1 rounded-lg">
+        <div className={`grid grid-cols-[auto_1fr] items-center gap-3 ${CARD}`}>
+          <span className={SECTION_LABEL}>Leng Map</span>
+          <div className={`justify-self-end ${SEGMENTED_GROUP}`}>
             {["fill", "short", "long"].map(mode => {
-              const lengMapTransform = transforms.filter(t => t.type === "set_leng_map").pop() as Extract<L1Transform, { type: "set_leng_map" }> | undefined;
-              const activeLengMap = lengMapTransform ? lengMapTransform.mode : "fill";
               return (
                 <button
                   key={mode}
                   onClick={() => onTransform({ type: "set_leng_map", mode: mode as any })}
                   aria-label={`Set length map ${mode}`}
-                  className={`px-2 py-1 rounded text-[10px] font-mono uppercase transition-colors ${
-                    activeLengMap === mode ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white hover:bg-zinc-800"
-                  }`}
+                  className={segmentedButtonClass(activeLengMap === mode)}
                 >
                   {mode}
                 </button>
@@ -130,11 +147,9 @@ export function L1Lattice({ state, onTransform, transforms }: Props) {
           </div>
         </div>
 
-        <div className="mt-2 text-center text-[10px] font-mono text-zinc-500">
+        <div className="mt-1 text-center text-[10px] font-mono text-zinc-500">
           LCM: {totalLcm} 16ths
         </div>
-
-      </div>
-    </div>
+    </LayerControlPanel>
   );
 }

@@ -1,16 +1,50 @@
-import React, { useReducer, useState, useEffect, useRef } from "react";
 import { SlidersHorizontal, X } from "lucide-react";
-import { reducer, initialState } from "./store";
-import { LayerStrip } from "./ui/LayerStrip";
+import { useEffect, useReducer, useRef, useState } from "react";
+import { serialize } from "./pipeline/serialize";
+import { initialState, LayerId, reducer, State } from "./store";
 import { BottomBar } from "./ui/BottomBar";
-import { JsonDrawer } from "./ui/JsonDrawer";
 import { DotGrid } from "./ui/DotGrid";
+import { JsonDrawer } from "./ui/JsonDrawer";
 import { L1Lattice } from "./ui/L1Lattice";
 import { L2Constellation } from "./ui/L2Constellation";
 import { L3Energy } from "./ui/L3Energy";
-import { serialize } from "./pipeline/serialize";
+import { LayerStrip } from "./ui/LayerStrip";
 
 const DEFAULT_EXPORT_ENDPOINT = "/api/export";
+const LAYER_HASHES: Record<LayerId, string> = {
+  l1: "#lattice",
+  l2: "#phase",
+  l3: "#energy",
+};
+
+function getLayerFromHash(hash: string): LayerId | null {
+  switch (hash.trim().toLowerCase()) {
+    case "#lattice":
+    case "#l1":
+      return "l1";
+    case "#phase":
+    case "#l2":
+      return "l2";
+    case "#energy":
+    case "#l3":
+      return "l3";
+    default:
+      return null;
+  }
+}
+
+function initializeState(state: State): State {
+  if (typeof window === "undefined") {
+    return state;
+  }
+
+  const layerFromHash = getLayerFromHash(window.location.hash);
+  if (!layerFromHash) {
+    return state;
+  }
+
+  return { ...state, activeLayer: layerFromHash };
+}
 
 function getExportEndpoint(): string {
   return import.meta.env.VITE_EXPORT_ENDPOINT?.trim() || DEFAULT_EXPORT_ENDPOINT;
@@ -35,7 +69,7 @@ function parseDownloadFilename(contentDisposition: string | null, fallbackName: 
 }
 
 export default function App() {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const [state, dispatch] = useReducer(reducer, initialState, initializeState);
   const [jsonOpen, setJsonOpen] = useState(false);
   const [controlsOpen, setControlsOpen] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
@@ -57,6 +91,29 @@ export default function App() {
     observer.observe(containerRef.current);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    const syncLayerFromHash = () => {
+      const layerFromHash = getLayerFromHash(window.location.hash);
+      if (layerFromHash && layerFromHash !== state.activeLayer) {
+        dispatch({ type: "SET_ACTIVE_LAYER", layer: layerFromHash });
+      }
+    };
+
+    syncLayerFromHash();
+    window.addEventListener("hashchange", syncLayerFromHash);
+    return () => window.removeEventListener("hashchange", syncLayerFromHash);
+  }, [state.activeLayer]);
+
+  useEffect(() => {
+    const expectedHash = LAYER_HASHES[state.activeLayer];
+    if (window.location.hash.toLowerCase() === expectedHash) {
+      return;
+    }
+
+    const { pathname, search } = window.location;
+    window.history.replaceState(null, "", `${pathname}${search}${expectedHash}`);
+  }, [state.activeLayer]);
 
   const handleExport = async () => {
     if (isExporting) {
@@ -155,7 +212,14 @@ export default function App() {
     <div className="fixed inset-0 bg-zinc-950 text-white flex flex-col font-sans overflow-hidden">
       <LayerStrip
         activeLayer={state.activeLayer}
-        onSelect={(layer) => dispatch({ type: "SET_ACTIVE_LAYER", layer })}
+        onSelect={(layer) => {
+          dispatch({ type: "SET_ACTIVE_LAYER", layer });
+
+          const nextHash = LAYER_HASHES[layer];
+          if (window.location.hash.toLowerCase() !== nextHash) {
+            window.location.hash = nextHash;
+          }
+        }}
         l1Configured={state.pipeline.layers.l1.length > 0}
         l2Configured={state.pipeline.layers.l2.length > 0}
         l3Configured={state.pipeline.layers.l3.length > 0}
@@ -169,9 +233,22 @@ export default function App() {
               activeLayer={state.activeLayer}
               width={dimensions.width}
               height={dimensions.height}
+              l1Transforms={state.pipeline.layers.l1}
               l2Transforms={state.pipeline.layers.l2}
               l3BaseState={state.l2State}
               l3Transforms={state.pipeline.layers.l3}
+              onL1RatioChange={(channel, delta) => {
+                const ratios = state.pipeline.layers.l1.reduce<number[]>((current, transform) => {
+                  if (transform.type === "set_ratios") return [...transform.ratios];
+                  return current;
+                }, [4, 4, 4, 4]);
+                const nextRatios = [...ratios];
+                nextRatios[channel] = Math.max(1, Math.min(16, nextRatios[channel] + delta));
+                dispatch({
+                  type: "ADD_L1_TRANSFORM",
+                  transform: { type: "set_ratios", ratios: nextRatios },
+                });
+              }}
               onL3DensityChange={(channel, step, amount) => {
                 dispatch({
                   type: "ADD_L3_TRANSFORM",
@@ -203,7 +280,6 @@ export default function App() {
                 <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
                   <div>
                     <p className="text-[10px] font-mono uppercase tracking-[0.32em] text-zinc-400">Live Controls</p>
-                    <p className="mt-1 text-xs text-zinc-500">Tune the active layer without leaving the canvas.</p>
                   </div>
                   <button
                     onClick={() => setControlsOpen(false)}

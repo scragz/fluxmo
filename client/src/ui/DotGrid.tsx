@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { PresetState, L2Transform, L3Transform } from "../pipeline/types";
 import { getDensityDeltaMatrix, getPhaseCrunchEnabled, getStepTimelines } from "../pipeline/rhythm";
+import { L1Transform, L2Transform, L3Transform, PresetState } from "../pipeline/types";
 import { LayerId } from "../store";
 
 interface Props {
@@ -8,9 +8,11 @@ interface Props {
   activeLayer: LayerId;
   width: number;
   height: number;
+  l1Transforms: L1Transform[];
   l2Transforms: L2Transform[];
   l3BaseState: PresetState;
   l3Transforms: L3Transform[];
+  onL1RatioChange?: (channel: number, delta: number) => void;
   onL3DensityChange?: (channel: number, step: number, amount: number) => void;
   onL2PhaseMove?: (channel: number, degrees: number) => void;
 }
@@ -31,6 +33,15 @@ type RingLayout = {
   radius: number;
 };
 
+type LatticeButtonLayout = {
+  channel: number;
+  delta: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 const COLORS = ["#f97316", "#22c55e", "#3b82f6", "#ef4444"];
 
 export function DotGrid({
@@ -38,20 +49,24 @@ export function DotGrid({
   activeLayer,
   width,
   height,
+  l1Transforms,
   l2Transforms,
   l3BaseState,
   l3Transforms,
+  onL1RatioChange,
   onL3DensityChange,
   onL2PhaseMove,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const laneLayoutsRef = useRef<LaneLayout[]>([]);
   const ringLayoutsRef = useRef<RingLayout[]>([]);
+  const latticeButtonsRef = useRef<LatticeButtonLayout[]>([]);
   const [draggingL3, setDraggingL3] = useState<{ channel: number; step: number } | null>(null);
   const [draggingL2, setDraggingL2] = useState<number | null>(null);
 
   const densityDeltas = getDensityDeltaMatrix(l3Transforms, l3BaseState.channels);
   const crunchEnabled = getPhaseCrunchEnabled(l2Transforms);
+  const ratios = getRatios(l1Transforms);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -65,6 +80,7 @@ export function DotGrid({
 
     laneLayoutsRef.current = [];
     ringLayoutsRef.current = [];
+    latticeButtonsRef.current = [];
 
     if (activeLayer === "l2") {
       drawPhaseRings(ctx, state, width, height, crunchEnabled, ringLayoutsRef.current);
@@ -76,8 +92,8 @@ export function DotGrid({
       return;
     }
 
-    drawLatticeGrid(ctx, state, width, height, laneLayoutsRef.current);
-  }, [activeLayer, crunchEnabled, densityDeltas, height, state, width]);
+    drawLatticeGrid(ctx, state, width, height, ratios, laneLayoutsRef.current, latticeButtonsRef.current);
+  }, [activeLayer, crunchEnabled, densityDeltas, height, ratios, state, width]);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -86,6 +102,20 @@ export function DotGrid({
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
+
+    if (activeLayer === "l1" && onL1RatioChange) {
+      const button = latticeButtonsRef.current.find(
+        (candidate) =>
+          x >= candidate.x &&
+          x <= candidate.x + candidate.width &&
+          y >= candidate.y &&
+          y <= candidate.y + candidate.height,
+      );
+      if (button) {
+        onL1RatioChange(button.channel, button.delta);
+      }
+      return;
+    }
 
     if (activeLayer === "l3" && onL3DensityChange) {
       const lane = laneLayoutsRef.current.find(
@@ -140,7 +170,9 @@ export function DotGrid({
     if (draggingL3 || draggingL2 !== null) {
       setDraggingL3(null);
       setDraggingL2(null);
-      event.currentTarget.releasePointerCapture(event.pointerId);
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
     }
   };
 
@@ -163,7 +195,9 @@ function drawLatticeGrid(
   state: PresetState,
   width: number,
   height: number,
+  ratios: number[],
   layouts: LaneLayout[],
+  buttons: LatticeButtonLayout[],
 ) {
   const paddingX = width * 0.08;
   const paddingY = height * 0.12;
@@ -171,11 +205,15 @@ function drawLatticeGrid(
   const usableHeight = height - paddingY * 2;
   const laneGap = Math.max(12, usableHeight * 0.04);
   const laneHeight = (usableHeight - laneGap * (state.channels.length - 1)) / Math.max(state.channels.length, 1);
+  const controlRailWidth = Math.min(92, usableWidth * 0.2);
+  const timelineWidth = usableWidth - controlRailWidth - 14;
 
   state.channels.forEach((channel, channelIndex) => {
     const { barLength, steps } = getStepTimelines(channel);
     const laneY = paddingY + channelIndex * (laneHeight + laneGap);
     const laneMid = laneY + laneHeight / 2;
+    const timelineX = paddingX;
+    const controlX = timelineX + timelineWidth + 14;
 
     ctx.fillStyle = "#09090b";
     ctx.fillRect(paddingX, laneY, usableWidth, laneHeight);
@@ -187,7 +225,7 @@ function drawLatticeGrid(
     ctx.fillText(`CH${channelIndex + 1}`, paddingX - 40, laneMid);
 
     for (let unit = 0; unit <= barLength; unit++) {
-      const guideX = paddingX + (unit / barLength) * usableWidth;
+      const guideX = timelineX + (unit / barLength) * timelineWidth;
       ctx.beginPath();
       ctx.moveTo(guideX, laneY);
       ctx.lineTo(guideX, laneY + laneHeight);
@@ -197,8 +235,8 @@ function drawLatticeGrid(
     }
 
     const stepRects = steps.map((step) => {
-      const stepX = paddingX + (step.start / barLength) * usableWidth;
-      const stepWidth = (step.length / barLength) * usableWidth;
+      const stepX = timelineX + (step.start / barLength) * timelineWidth;
+      const stepWidth = (step.length / barLength) * timelineWidth;
 
       ctx.fillStyle = COLORS[channelIndex];
       ctx.globalAlpha = 0.08;
@@ -213,13 +251,35 @@ function drawLatticeGrid(
 
     steps.forEach((step) => {
       step.triggers.forEach((trigger) => {
-        const triggerX = paddingX + (trigger.position / barLength) * usableWidth;
+        const triggerX = timelineX + (trigger.position / barLength) * timelineWidth;
         ctx.beginPath();
         ctx.arc(triggerX, laneMid, 3.5, 0, Math.PI * 2);
         ctx.fillStyle = COLORS[channelIndex];
         ctx.fill();
       });
     });
+
+    const buttonSize = Math.min(24, laneHeight - 18);
+    const buttonY = laneMid - buttonSize / 2;
+    const minusX = controlX;
+    const badgeX = minusX + buttonSize + 8;
+    const badgeWidth = 28;
+    const plusX = badgeX + badgeWidth + 8;
+
+    drawCanvasButton(ctx, minusX, buttonY, buttonSize, buttonSize, "-");
+    drawCanvasButton(ctx, plusX, buttonY, buttonSize, buttonSize, "+");
+    buttons.push({ channel: channelIndex, delta: -1, x: minusX, y: buttonY, width: buttonSize, height: buttonSize });
+    buttons.push({ channel: channelIndex, delta: 1, x: plusX, y: buttonY, width: buttonSize, height: buttonSize });
+
+    ctx.fillStyle = "#111827";
+    ctx.beginPath();
+    ctx.roundRect(badgeX, buttonY, badgeWidth, buttonSize, 10);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.08)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = COLORS[channelIndex];
+    ctx.fillText(String(ratios[channelIndex] ?? 4), badgeX + 9, laneMid);
 
     layouts.push({
       channel: channelIndex,
@@ -250,7 +310,9 @@ function drawEnergyGrid(
   state.channels.forEach((channel, channelIndex) => {
     const { barLength, steps } = getStepTimelines(channel);
     const laneY = paddingY + channelIndex * (laneHeight + laneGap);
-    const baselineY = laneY + laneHeight * 0.58;
+    const trackTop = laneY + laneHeight * 0.14;
+    const trackBottom = laneY + laneHeight * 0.86;
+    const trackHeight = trackBottom - trackTop;
 
     ctx.fillStyle = "#050816";
     ctx.fillRect(paddingX, laneY, usableWidth, laneHeight);
@@ -265,62 +327,54 @@ function drawEnergyGrid(
       const stepX = paddingX + (step.start / barLength) * usableWidth;
       const stepWidth = (step.length / barLength) * usableWidth;
       const delta = densityDeltas[channelIndex]?.[step.index] ?? 0;
-      const deltaHeight = Math.abs(delta) * laneHeight * 0.3;
-      const blockX = stepX + 2;
-      const blockWidth = Math.max(10, stepWidth - 4);
+      const cellX = stepX + stepWidth / 2;
+      const trackX = cellX - Math.min(7, stepWidth * 0.2);
+      const dotX = cellX + Math.min(8, stepWidth * 0.22);
+      const handleY = trackTop + (1 - (delta + 1) / 2) * trackHeight;
+      const dotCount = Math.max(1, Math.min(step.dens, 12));
 
       ctx.fillStyle = "#0b1220";
-      ctx.fillRect(blockX, laneY + 2, blockWidth, laneHeight - 4);
-      ctx.strokeStyle = COLORS[channelIndex];
-      ctx.globalAlpha = 0.18;
-      ctx.strokeRect(blockX, laneY + 2, blockWidth, laneHeight - 4);
+      ctx.globalAlpha = 0.82;
+      ctx.fillRect(stepX + 1, laneY + 2, Math.max(stepWidth - 2, 2), laneHeight - 4);
       ctx.globalAlpha = 1;
+      ctx.strokeStyle = "rgba(255,255,255,0.05)";
+      ctx.strokeRect(stepX + 1, laneY + 2, Math.max(stepWidth - 2, 2), laneHeight - 4);
 
       ctx.beginPath();
-      ctx.moveTo(blockX + 6, baselineY);
-      ctx.lineTo(blockX + blockWidth - 6, baselineY);
-      ctx.strokeStyle = "#1f2937";
+      ctx.moveTo(trackX, trackTop);
+      ctx.lineTo(trackX, trackBottom);
+      ctx.strokeStyle = "#334155";
+      ctx.lineWidth = 2;
       ctx.stroke();
 
-      if (deltaHeight > 0) {
-        ctx.fillStyle = COLORS[channelIndex];
-        ctx.globalAlpha = 0.72;
-        ctx.fillRect(
-          blockX + blockWidth * 0.18,
-          delta >= 0 ? baselineY - deltaHeight : baselineY,
-          Math.max(8, blockWidth * 0.2),
-          deltaHeight,
-        );
-        ctx.globalAlpha = 1;
-      }
+      const midY = trackTop + trackHeight / 2;
+      ctx.beginPath();
+      ctx.moveTo(trackX - 5, midY);
+      ctx.lineTo(trackX + 5, midY);
+      ctx.strokeStyle = "#475569";
+      ctx.lineWidth = 1;
+      ctx.stroke();
 
-      const pipCount = Math.min(step.dens, 12);
-      const pipRows = 2;
-      const pipCols = Math.max(1, Math.ceil(pipCount / pipRows));
-      const pipSpacingX = Math.max(6, Math.min(10, blockWidth / Math.max(2, pipCols + 1)));
-      const pipSpacingY = 9;
-      const pipStartX = blockX + blockWidth * 0.48;
-      const pipStartY = laneY + laneHeight * 0.25;
+      ctx.beginPath();
+      ctx.moveTo(trackX, midY);
+      ctx.lineTo(trackX, handleY);
+      ctx.strokeStyle = COLORS[channelIndex];
+      ctx.globalAlpha = 0.5;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
 
-      for (let pip = 0; pip < pipCount; pip++) {
-        const col = Math.floor(pip / pipRows);
-        const row = pip % pipRows;
+      for (let dot = 0; dot < dotCount; dot++) {
+        const dotY = trackTop + (dot / Math.max(dotCount - 1, 1)) * trackHeight;
         ctx.beginPath();
-        ctx.arc(
-          pipStartX + col * pipSpacingX,
-          pipStartY + row * pipSpacingY,
-          2.4,
-          0,
-          Math.PI * 2,
-        );
+        ctx.arc(dotX, dotY, 1.9, 0, Math.PI * 2);
         ctx.fillStyle = COLORS[channelIndex];
-        ctx.globalAlpha = 0.95 - row * 0.18;
+        ctx.globalAlpha = 0.9;
         ctx.fill();
       }
       ctx.globalAlpha = 1;
 
-      ctx.fillStyle = "#94a3b8";
-      ctx.fillText(`${step.dens}`, blockX + blockWidth - 14, laneY + 12);
+      drawDragHandle(ctx, trackX, handleY, COLORS[channelIndex], 12, 8);
 
       return { step: step.index, x: stepX, width: stepWidth };
     });
@@ -350,7 +404,7 @@ function drawPhaseRings(
   const ringGap = Math.min(width, height) * 0.095;
 
   state.channels.forEach((channel, channelIndex) => {
-    const { barLength, steps } = getStepTimelines(channel);
+    const { barLength, steps } = getStepTimelines(channel, { wrapPositions: true });
     const radius = baseRadius + channelIndex * ringGap;
     layouts.push({ channel: channelIndex, cx, cy, radius });
 
@@ -385,6 +439,17 @@ function drawPhaseRings(
     const handleAngle = (phase / 360) * Math.PI * 2 - Math.PI / 2;
     const handleX = cx + Math.cos(handleAngle) * radius;
     const handleY = cy + Math.sin(handleAngle) * radius;
+    const outerHandleX = cx + Math.cos(handleAngle) * (radius + 16);
+    const outerHandleY = cy + Math.sin(handleAngle) * (radius + 16);
+    ctx.beginPath();
+    ctx.moveTo(handleX, handleY);
+    ctx.lineTo(outerHandleX, outerHandleY);
+    ctx.strokeStyle = COLORS[channelIndex];
+    ctx.globalAlpha = 0.55;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    drawDragHandle(ctx, outerHandleX, outerHandleY, COLORS[channelIndex], 16, 10);
     ctx.beginPath();
     ctx.arc(handleX, handleY, 7, 0, Math.PI * 2);
     ctx.fillStyle = "#09090b";
@@ -393,20 +458,12 @@ function drawPhaseRings(
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    ctx.fillStyle = COLORS[channelIndex];
-    ctx.fillText(`CH${channelIndex + 1}`, cx - 18, cy - radius - 18);
-
     const dropped = steps.reduce((total, step) => total + step.droppedTriggers, 0);
     if (dropped > 0) {
       ctx.fillStyle = "#a1a1aa";
       ctx.fillText(`-${dropped}`, cx + radius + 14, cy);
     }
   });
-
-  if (crunchEnabled) {
-    ctx.fillStyle = "#d4d4d8";
-    ctx.fillText("COMP LINK", cx - 34, cy);
-  }
 }
 
 function findClosestRing(layouts: RingLayout[], x: number, y: number): RingLayout | null {
@@ -449,4 +506,70 @@ function phaseFromRingPointer(ring: RingLayout, x: number, y: number): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function getRatios(transforms: L1Transform[]): number[] {
+  return transforms.reduce<number[]>((current, transform) => {
+    if (transform.type === "set_ratios") return [...transform.ratios];
+    return current;
+  }, [4, 4, 4, 4]);
+}
+
+function drawCanvasButton(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  label: "+" | "-",
+) {
+  ctx.fillStyle = "#111827";
+  ctx.beginPath();
+  ctx.roundRect(x, y, width, height, 10);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.08)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(x + 7, y + height / 2);
+  ctx.lineTo(x + width - 7, y + height / 2);
+  ctx.strokeStyle = "#e4e4e7";
+  ctx.lineWidth = 1.8;
+  ctx.stroke();
+
+  if (label === "+") {
+    ctx.beginPath();
+    ctx.moveTo(x + width / 2, y + 7);
+    ctx.lineTo(x + width / 2, y + height - 7);
+    ctx.stroke();
+  }
+}
+
+function drawDragHandle(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  color: string,
+  width: number,
+  height: number,
+) {
+  ctx.fillStyle = "#09090b";
+  ctx.beginPath();
+  ctx.roundRect(x - width / 2, y - height / 2, width, height, Math.min(width, height) / 2);
+  ctx.fill();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(x - 2, y - height / 2 + 2);
+  ctx.lineTo(x - 2, y + height / 2 - 2);
+  ctx.moveTo(x + 2, y - height / 2 + 2);
+  ctx.lineTo(x + 2, y + height / 2 - 2);
+  ctx.strokeStyle = color;
+  ctx.globalAlpha = 0.7;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
 }

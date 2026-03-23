@@ -1,6 +1,14 @@
 import React from "react";
 import { PresetState, L3Transform } from "../pipeline/types";
 import { getDensityDeltaMatrix } from "../pipeline/rhythm";
+import {
+  CARD,
+  LayerControlPanel,
+  SECTION_LABEL,
+  SEGMENTED_GROUP,
+  channelAccentClass,
+  segmentedButtonClass,
+} from "./controlPanel";
 
 interface Props {
   state: PresetState;
@@ -25,11 +33,12 @@ export function L3Energy({ state, baseState, onTransform, transforms }: Props) {
   };
 
   return (
-    <div className="p-4">
-      <div className="flex w-full flex-col gap-4 rounded-[28px] border border-cyan-500/15 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(10,10,14,0.9))] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.3)]">
-        <div className="rounded-2xl border border-cyan-500/12 bg-cyan-500/6 px-4 py-3">
-          <div className="text-[10px] font-mono uppercase tracking-[0.32em] text-cyan-200/70">Energy Field</div>
-          <div className="mt-1 text-sm text-zinc-200">Push or starve existing trigger density per step.</div>
+    <LayerControlPanel
+      layer="Layer 3"
+      title="Energy"
+      description="Push or starve trigger density per step, then add human feel without leaving the active lane."
+    >
+        <div className={CARD}>
           <div className="mt-2 flex justify-between text-[10px] font-mono uppercase tracking-[0.24em] text-zinc-500">
             <span>- lean out</span>
             <span>0 baseline</span>
@@ -37,85 +46,52 @@ export function L3Energy({ state, baseState, onTransform, transforms }: Props) {
           </div>
         </div>
         
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-[10px] font-mono text-zinc-500">CH OFFSET</span>
-          <div className="flex gap-1 bg-zinc-950 p-1 rounded-lg">
+        <div className={`${CARD} flex items-center justify-between`}>
+          <span className={SECTION_LABEL}>Ch Offset</span>
+          <div className={SEGMENTED_GROUP}>
             <button
               onClick={() => onTransform({ type: "set_channel_offset", enabled: true })}
-              className={`px-2 py-1 rounded text-[10px] font-mono uppercase transition-colors ${
-                isOffset ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white hover:bg-zinc-800"
-              }`}
+              className={segmentedButtonClass(isOffset)}
             >
-              ON
+              On
             </button>
             <button
               onClick={() => onTransform({ type: "set_channel_offset", enabled: false })}
-              className={`px-2 py-1 rounded text-[10px] font-mono uppercase transition-colors ${
-                !isOffset ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white hover:bg-zinc-800"
-              }`}
+              className={segmentedButtonClass(!isOffset)}
             >
-              OFF
+              Off
             </button>
           </div>
         </div>
 
         <div className="flex flex-col gap-3">
           {densityDeltas.map((channelDeltas, c) => (
-            <div key={c} className="rounded-2xl border border-white/8 bg-zinc-950/72 px-3 py-3">
-              <div className="mb-2 flex items-center justify-between">
-                <span className={`text-[11px] font-mono uppercase tracking-[0.24em] ${
-                  c === 0 ? "text-orange-400" : c === 1 ? "text-green-400" : c === 2 ? "text-blue-400" : "text-red-400"
-                }`}>CH{c+1}</span>
-                <span className="text-right text-[10px] font-mono text-zinc-500">
+            <div key={c} className={CARD}>
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div>
+                  <div className={`text-[11px] font-mono uppercase tracking-[0.24em] ${channelAccentClass(c)}`}>CH{c+1}</div>
+                  <div className="mt-1 text-[10px] text-zinc-500">Drag the handle. Dots show density distribution beside each step.</div>
+                </div>
+                <div className="text-right text-[10px] font-mono text-zinc-500">
                   {deltaLabel(channelDeltas)}
-                </span>
+                </div>
               </div>
-              <div className="flex h-20 gap-2 items-center">
-                <span className={`text-[10px] font-mono w-6 ${
-                c === 0 ? "text-orange-500" : c === 1 ? "text-green-500" : c === 2 ? "text-blue-500" : "text-red-500"
-              }`}>CH{c+1}</span>
-                <div 
-                  className="flex-1 flex gap-1 h-full items-center"
-                  onDoubleClick={() => {
-                    onTransform({ type: "set_density_delta_all", channel: c as 0|1|2|3, amount: 0 });
-                  }}
-                >
+              <div
+                className="overflow-x-auto"
+                onDoubleClick={() => {
+                  onTransform({ type: "set_density_delta_all", channel: c as 0|1|2|3, amount: 0 });
+                }}
+              >
+                <div className="flex min-w-max items-end gap-1.5">
                   {channelDeltas.map((delta, s) => (
-                    <div 
-                      key={s} 
-                      className="flex-1 h-full relative group cursor-pointer touch-none rounded-md bg-zinc-900/70"
-                      onPointerDown={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const y = e.clientY - rect.top;
-                        const normalized = 1 - (y / rect.height);
-                        const amount = Math.max(-1, Math.min(1, normalized * 2 - 1));
-                        handleDensityDeltaChange(c, s, amount);
-                        e.currentTarget.setPointerCapture(e.pointerId);
-                      }}
-                      onPointerMove={(e) => {
-                        if (e.buttons !== 1) return;
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const y = e.clientY - rect.top;
-                        const normalized = 1 - (y / rect.height);
-                        const amount = Math.max(-1, Math.min(1, normalized * 2 - 1));
-                        handleDensityDeltaChange(c, s, amount);
-                      }}
-                      onPointerUp={(e) => {
-                        e.currentTarget.releasePointerCapture(e.pointerId);
-                      }}
-                    >
-                      <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-zinc-700" />
-                      <div 
-                        className={`absolute inset-x-0 bg-zinc-800 transition-all ${
-                          delta >= 0 ? "bottom-1/2 rounded-t-sm" : "top-1/2 rounded-b-sm"
-                        }`}
-                        style={{ height: `${Math.max(0, Math.abs(delta) * 50)}%` }}
-                      >
-                        <div className={`absolute inset-0 ${delta >= 0 ? "rounded-t-sm" : "rounded-b-sm"} opacity-60 group-hover:opacity-100 transition-opacity ${
-                          c === 0 ? "bg-orange-500" : c === 1 ? "bg-green-500" : c === 2 ? "bg-blue-500" : "bg-red-500"
-                        }`} />
-                      </div>
-                    </div>
+                    <EnergyStepControl
+                      key={s}
+                      channel={c}
+                      colorClass={channelColorClass(c)}
+                      density={state.channels[c]?.steps[s]?.dens ?? baseState.channels[c]?.steps[s]?.dens ?? 0}
+                      delta={delta}
+                      onChange={(value) => handleDensityDeltaChange(c, s, value)}
+                    />
                   ))}
                 </div>
               </div>
@@ -123,8 +99,8 @@ export function L3Energy({ state, baseState, onTransform, transforms }: Props) {
           ))}
         </div>
 
-        <div className="mt-2 rounded-2xl border border-white/8 bg-zinc-950/72 px-4 py-3">
-          <span className="text-[10px] font-mono text-zinc-500">HUMA</span>
+        <div className={`${CARD} mt-2 px-4`}>
+          <span className={SECTION_LABEL}>Huma</span>
           <div className="flex gap-2">
             {humas.map((huma, c) => (
               <div key={c} className="flex-1 flex flex-col items-center gap-1">
@@ -134,18 +110,14 @@ export function L3Energy({ state, baseState, onTransform, transforms }: Props) {
                   max="64"
                   value={huma}
                   onChange={(e) => handleHumaChange(c, parseInt(e.target.value))}
-                  className="w-full h-2 bg-zinc-800 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-zinc-400"
+                  className="w-full h-2 bg-zinc-800 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-white/25 [&::-webkit-slider-thumb]:bg-zinc-400"
                 />
-                <span className={`text-[8px] font-mono ${
-                  c === 0 ? "text-orange-500" : c === 1 ? "text-green-500" : c === 2 ? "text-blue-500" : "text-red-500"
-                }`}>CH{c+1}</span>
+                <span className={`text-[8px] font-mono ${channelAccentClass(c)}`}>CH{c+1}</span>
               </div>
             ))}
           </div>
         </div>
-
-      </div>
-    </div>
+    </LayerControlPanel>
   );
 }
 
@@ -154,4 +126,73 @@ function deltaLabel(deltas: number[]): string {
   const pct = Math.round(maxDelta * 100);
   if (pct === 0) return "0%";
   return `${pct > 0 ? "+" : ""}${pct}%`;
+}
+
+function EnergyStepControl({
+  channel,
+  colorClass,
+  density,
+  delta,
+  onChange,
+}: {
+  channel: number;
+  colorClass: string;
+  density: number;
+  delta: number;
+  onChange: (value: number) => void;
+}) {
+  const applyFromPointer = (element: HTMLButtonElement, clientY: number) => {
+    const rect = element.getBoundingClientRect();
+    const y = clientY - rect.top;
+    const normalized = 1 - y / rect.height;
+    onChange(Math.max(-1, Math.min(1, normalized * 2 - 1)));
+  };
+
+  const thumbPosition = `${(1 - (delta + 1) / 2) * 100}%`;
+  const dotCount = Math.max(1, Math.min(density, 12));
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <button
+        type="button"
+        className="group relative flex h-24 w-6 touch-none items-center justify-center rounded-2xl border border-white/8 bg-zinc-900/80"
+        onPointerDown={(event) => {
+          applyFromPointer(event.currentTarget, event.clientY);
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+          applyFromPointer(event.currentTarget, event.clientY);
+        }}
+        onPointerUp={(event) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }
+        }}
+        onPointerCancel={(event) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }
+        }}
+        aria-label={`Adjust energy for channel ${channel + 1}`}
+      >
+        <div className="absolute inset-y-2 left-[0.62rem] w-px bg-zinc-700" />
+        <div className="absolute left-2 top-1/2 w-3 -translate-y-1/2 border-t border-dashed border-zinc-600" />
+        <div className={`absolute left-[0.28rem] h-4 w-3 rounded-full border border-white/20 bg-zinc-950 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] ${colorClass}`} style={{ top: `calc(${thumbPosition} - 0.5rem)` }}>
+          <div className="absolute inset-y-[3px] left-[5px] w-px bg-current/80" />
+          <div className="absolute inset-y-[3px] left-[7px] w-px bg-current/50" />
+        </div>
+        <div className="absolute inset-y-2 right-[0.38rem] flex flex-col items-center justify-between">
+          {Array.from({ length: dotCount }).map((_, index) => (
+            <span key={index} className={`h-1 w-1 rounded-full ${colorClass} opacity-90`} />
+          ))}
+        </div>
+      </button>
+      <span className="text-[8px] font-mono text-zinc-500">{density}</span>
+    </div>
+  );
+}
+
+function channelColorClass(channel: number): string {
+  return channelAccentClass(channel);
 }
