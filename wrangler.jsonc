@@ -13,6 +13,11 @@
 	"observability": {
 		"enabled": true
 	},
+  "build": {
+    "command": "npm run build",
+    "cwd": "./client",
+    "watch_dir": "./client/dist",
+  },
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
