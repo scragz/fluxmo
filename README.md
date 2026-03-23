@@ -88,7 +88,7 @@ are preserved byte-for-byte.
 | `gate`    | Trigger length % 0–99            | uint8  | 0x0040  | LIKELY    |
 | `leng`    | Step length in 16ths 1–16        | uint8  | 0x0080  | CONFIRMED |
 | `aux1`    | AUX1 mode index (experimental)   | uint8  | 0x1900  | UNCERTAIN |
-| `aux2`    | AUX2 mode index (see `map`)      | uint8  | 0x00C0  | LIKELY    |
+| `aux2`    | AUX2 mode index (experimental)   | uint8  | 0x1940  | UNCERTAIN |
 | `dens`    | Trigger density 0–64             | uint8  | 0x0200  | CONFIRMED |
 | `huma`    | Humanize 0–127                   | uint8  | 0x0340  | LIKELY    |
 | `phas`    | Phase shift degrees 0–360        | uint16 | 0x0380  | CONFIRMED |
@@ -102,9 +102,9 @@ are preserved byte-for-byte.
 | `sync`    | LFO sync mode 0–4               | uint8  | 0x0440  | UNCERTAIN |
 | `s_h`     | Sample & Hold 0/1                | uint8  | 0x0780  | UNCERTAIN |
 
-`aux1` is now editable via the provisional late-file mapping at `0x1900`. The
-old `0x0A00` mapping was wrong; that block is loop control. The current working
-slot formula is based on corpus evidence, including `MAC0204_.TXT` where
+`aux1` and `aux2` are now editable via the late-file AUX arrays at `0x1900`
+and `0x1940`. The current working slot formula is channel-major order rotated
+left by 4 bytes, based on corpus evidence including `MAC0204_.TXT` where
 position `44` matches `CH4 step1`.
 
 Example:

@@ -2,8 +2,8 @@
 """
 FLUX Community Preset Editor — CLI entry point.
 
-Reverse-engineered file format parser/editor for FLUX Eurorack sequencer
-presets and persistent configuration files (firmware v1.07–v1.08).
+Reverse-engineered file format parser/editor for current FLUX Eurorack
+sequencer v3 preset files and persistent configuration files.
 
 Usage:
   python3 main.py show   <file.TXT>
@@ -25,7 +25,7 @@ from src.fluxmo.diff import diff_presets, hexdump
 
 
 USAGE = """
-FLUX Community Preset Editor  (reverse-engineered v1.07 format)
+FLUX Community Preset Editor  (v3 preset format)
 
 Usage:
   python3 main.py show   <file.TXT>           Show all decoded parameters
@@ -43,7 +43,7 @@ Editable parameters (confirmed/likely):
   curv       TM curve label                   u8     offset 0x0280 (likely; accepts 1, 2.0.., NL2.0..)
   leng       Step length in 16ths 1–32        uint8  offset 0x0080
   aux1       AUX1 mode index (experimental)   uint8  offset 0x1900 (provisional late AUX indexing)
-  aux2       AUX2 mode index (see map)         uint8  offset 0x00C0
+  aux2       AUX2 mode index (experimental)    uint8  offset 0x1940 (late AUX indexing)
   dens       Trigger density 0–64             uint8  offset 0x0200
   huma       Humanize 0–127                   uint8  offset 0x0340
   phas       Phase shift degrees 0–360        uint16 offset 0x0380
@@ -155,8 +155,8 @@ def cmd_map():
         "experimental late-file array; channel-major rotated left by 4"
     )
     print(
-        f"  0x{OFFSET_AUX2_CANDIDATE:04X}   u8×64  AUX2?         TBD        "
-        "candidate array with the same provisional indexing as 0x1900"
+        f"  0x{OFFSET_AUX2_CANDIDATE:04X}   u8×64  AUX2          UNCERTAIN  "
+        "experimental late-file array; channel-major rotated left by 4"
     )
     print()
     print("Per-channel records (4 × 128 bytes starting at 0x1B80):")

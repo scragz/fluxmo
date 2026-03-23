@@ -172,10 +172,6 @@ STEP_ARRAYS_U8 = {
         "LENG",
         "CONFIRMED",
     ),  # Step length in 16ths. Default=1; corpus includes values up to 32.
-    0x00C0: (
-        "AUX2",
-        "LIKELY",
-    ),  # AUX output 2 mode index (see AUX_MODES). Default=1=ON.
     # 0x0100–0x01FF: VAL — see OFFSET_VAL below (float32 LE, 256 bytes = 64 × f32, step-major).
     #   Default=0.0. Confirmed: MAC0204 CH2 step4 shows "6.00" on display → f32=6.0 at 0x0134.
     0x0200: ("DENS", "CONFIRMED"),  # Trigger density (0–64 gates/step). Default=1.
@@ -572,7 +568,7 @@ STEP_PARAM_SPECS = {
     ),
     "leng": ParamSpec("leng", "u8", "CONFIRMED", 1, 1, 32, "LENG", ("length",)),
     "aux1": ParamSpec("aux1", "u8", "UNCERTAIN", 0, 0, len(AUX_MODES) - 1, "AUX1"),
-    "aux2": ParamSpec("aux2", "u8", "LIKELY", 1, 0, len(AUX_MODES) - 1, "AUX2"),
+    "aux2": ParamSpec("aux2", "u8", "UNCERTAIN", 0, 0, len(AUX_MODES) - 1, "AUX2"),
     "huma": ParamSpec("huma", "u8", "LIKELY", 0, 0, 127, "HUMA"),
     "val": ParamSpec("val", "f32", "CONFIRMED", 0.0, None, None, "VAL"),
     "comp": ParamSpec("comp", "i8", "CONFIRMED", 0, -99, 99, "COMP%", ("comp%",)),
@@ -734,7 +730,6 @@ class FluxPreset:
     """
 
     EXPECTED_SIZE = 8196
-    KNOWN_SIZES = {3860: "v1", 6404: "v2", 8196: "v3"}
 
     def __init__(self):
         self.raw = self._default_raw()
@@ -856,14 +851,9 @@ class FluxPreset:
         with open(path, "rb") as f:
             p.raw = bytearray(f.read())
         sz = len(p.raw)
-        if sz not in cls.KNOWN_SIZES:
-            print(
-                f"WARNING: unknown size {sz} bytes (known: {list(cls.KNOWN_SIZES.keys())})"
-            )
-        elif sz != cls.EXPECTED_SIZE:
-            fmt = cls.KNOWN_SIZES[sz]
-            print(
-                f"NOTE: {fmt} format ({sz} bytes) — older firmware. Some params may be absent."
+        if sz != cls.EXPECTED_SIZE:
+            raise ValueError(
+                f"Unsupported preset size {sz} bytes. Only v3 ({cls.EXPECTED_SIZE} bytes) is supported."
             )
         p._parse()
         return p
@@ -1063,11 +1053,6 @@ class FluxPreset:
 
     def _parse(self):
         d = self.raw
-        if len(d) < self.EXPECTED_SIZE:
-            print(
-                f"  NOTE: file is {len(d)} bytes (expected {self.EXPECTED_SIZE}). "
-                f"Older format — only parsing confirmed regions."
-            )
 
         def safe_u8(off):
             return d[off] if off < len(d) else 0
@@ -1091,7 +1076,7 @@ class FluxPreset:
                 self.gate[ch][step] = safe_u8(0x0040 + idx)
                 self.leng[ch][step] = safe_u8(0x0080 + idx)
                 self.aux1[ch][step] = safe_u8(OFFSET_AUX1_CANDIDATE + aux_idx)
-                self.aux2[ch][step] = safe_u8(0x00C0 + idx)
+                self.aux2[ch][step] = safe_u8(OFFSET_AUX2_CANDIDATE + aux_idx)
                 self.dens[ch][step] = safe_u8(0x0200 + idx)
                 self.tm_curv[ch][step] = safe_u8(0x0280 + idx)
                 self.val[ch][step] = safe_f32(OFFSET_VAL + idx * 4)
@@ -1110,16 +1095,11 @@ class FluxPreset:
                 self.quan[ch][step] = safe_u8(0x07C0 + idx)
 
         for ch in range(CHANNEL_COUNT):
-            legacy_loop = safe_u8(0x0000 + self._slot(ch, 0))
             loop_end = safe_u8(OFFSET_LOOP_END + ch)
             loop_start = safe_u8(OFFSET_LOOP_START + ch)
             if not (1 <= loop_start <= loop_end <= 16):
                 loop_start = 1
-                loop_end = (
-                    legacy_loop
-                    if 1 <= legacy_loop <= 16
-                    else STEP_PARAM_SPECS["loop"].default
-                )
+                loop_end = STEP_PARAM_SPECS["loop"].default
             self.loop_start[ch] = loop_start
             self.loop_end[ch] = loop_end
             for step in range(STEPS_PER_CHANNEL):
@@ -1143,7 +1123,7 @@ class FluxPreset:
                 d[0x0040 + idx] = self.gate[ch][step] & 0xFF
                 d[0x0080 + idx] = self.leng[ch][step] & 0xFF
                 d[OFFSET_AUX1_CANDIDATE + aux_idx] = self.aux1[ch][step] & 0xFF
-                d[0x00C0 + idx] = self.aux2[ch][step] & 0xFF
+                d[OFFSET_AUX2_CANDIDATE + aux_idx] = self.aux2[ch][step] & 0xFF
                 d[0x0200 + idx] = self.dens[ch][step] & 0xFF
                 d[0x0280 + idx] = self.tm_curv[ch][step] & 0xFF
                 struct.pack_into(
@@ -1194,10 +1174,7 @@ class FluxPreset:
 
     def display(self, verbose: bool = False):
         sz = len(self.raw)
-        fmt_note = {3860: "v1 format", 6404: "v2 format", 8196: "v3 format"}.get(
-            sz, "unknown format"
-        )
-        print(f"=== FLUX Preset ({sz} bytes, {fmt_note}) ===")
+        print(f"=== FLUX Preset ({sz} bytes, v3 format) ===")
         print()
         for ch in range(CHANNEL_COUNT):
             ch_name = ["CH1(orange)", "CH2(green)", "CH3(blue)", "CH4(red)"][ch]
@@ -1259,7 +1236,7 @@ class FluxPreset:
             "LENG": (self.leng[ch][step], "CONFIRMED"),
             "PHAS_deg": (self.phas[ch][step], "CONFIRMED"),
             "AUX1": (aux_name(self.aux1[ch][step]), "UNCERTAIN"),
-            "AUX2": (aux_name(self.aux2[ch][step]), "LIKELY"),
+            "AUX2": (aux_name(self.aux2[ch][step]), "UNCERTAIN"),
             "MOD_BUS": (mod_bus_name(self.mod_bus[ch][step]), "CONFIRMED"),
             "PROB_VAL": (self.prob_val[ch][step], "LIKELY"),
             "MINV_mV": (self.minv[ch][step], "LIKELY"),

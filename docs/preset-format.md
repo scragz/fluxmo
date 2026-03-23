@@ -1,14 +1,8 @@
 # FLUX Preset File Format
 
 **Applies to:** `FLUX/*.TXT` files on the SD card
-**Format versions:** v1 (3860 B), v2 (6404 B), v3 (8196 B)
-**Analysis based on:** firmware v1.07–v1.08, corpus of 87 preset files
-
-| Version | Firmware  | Size    | Notes |
-|---------|-----------|---------|-------|
-| v1      | ~v1.05    | 3860 B  | Earliest format |
-| v2      | ~v1.06–07 | 6404 B  | Expanded |
-| v3      | v1.08+    | 8196 B  | Current; all analysis below is v3 unless noted |
+**Format version:** v3 (8196 B)
+**Analysis based on:** current v3 corpus and firmware-era docs
 
 ---
 
@@ -45,7 +39,7 @@ Each entry covers all 64 step slots. Unless noted, each is 64 bytes (1 byte/slot
 | 0x0000        | 1         | uint8     | LOOP    | 1       | UNCERTAIN | Legacy per-step mirror of loop end. Hardware loop UI does **not** follow this field; current firmware uses the control bytes at `0x0A00..0x0A07`. |
 | 0x0040        | 1         | uint8     | GATE    | 10      | LIKELY    | Trigger length % (0–99). Values 10–90 in corpus. |
 | 0x0080        | 1         | uint8     | LENG    | 1       | CONFIRMED | Step length in 16ths. Device-saved presets show values from 1 up to 32; `1` displays as `1/16`. |
-| 0x00C0        | 1         | uint8     | AUX2    | 1 (ON)  | LIKELY    | AUX output 2 mode index (see AUX Mode Table). v1/v2 show full variation; v3 corpus all=1=ON. |
+| 0x00C0        | 1         | uint8     | (unk)   | 1       | UNCERTAIN | Constant-looking block in v3 corpus. Older AUX2 assumptions removed. |
 | 0x0100–0x01FF | —         | —         | MASK?   | 0       | UNCERTAIN | 256 bytes with sparse bitmask-like values (0x33, 0x40, 0xC0). Candidates: MASK + MSK> as uint8 bitmasks. |
 | 0x0200        | 1         | uint8     | DENS    | 1       | CONFIRMED | Trigger density (0–64 gates per step). |
 | 0x0240        | 1         | uint8     | COMP?   | 0       | UNCERTAIN | Sparse signed-looking values in older presets and value `50` in `MAC0204_.TXT`. Strong compression/expansion candidate. |
@@ -64,7 +58,7 @@ Each entry covers all 64 step slots. Unless noted, each is 64 bytes (1 byte/slot
 | 0x0640        | 1         | uint8     | PROB    | 100     | LIKELY    | Probability % (0–100). REL also defaults to 100; corpus can't distinguish. |
 | 0x0680–0x077F | 4         | float32 LE | FREQ   | 1.0     | CONFIRMED | LFO frequency in Hz. 256 bytes = 64 × float32. |
 | 0x0780        | 1         | uint8     | S+H     | 0       | UNCERTAIN | Sample & Hold (0=OFF, 1=ON). Binary values only. |
-| 0x07C0        | 1         | uint8     | QUAN    | 12      | LIKELY    | Quantizer semitones (12=chromatic). Previously mislabeled AUX2. AUX2 is at 0x00C0. |
+| 0x07C0        | 1         | uint8     | QUAN    | 12      | LIKELY    | Quantizer semitones (12=chromatic). |
 
 **Still unlocated or only partially located from RHYTHMS/LFO pages:**
 
@@ -95,10 +89,10 @@ A second set of per-step parameters begins at 0x0800. Structure less mapped than
 | 0x0A00–0x0A03 | 1 / channel | uint8 | LOOP_END | 1       | CONFIRMED | Per-channel sequence end. Hardware-correlated examples: `04 04 04 01` = `1-4 / 1-4 / 1-4 / 1`; `04 04 08 04` = `1-4 / 1-4 / 1-8 / 1-4`. |
 | 0x0A04–0x0A07 | 1 / channel | uint8 | LOOP_START | 1     | LIKELY    | Per-channel sequence start. All checked corpus presets use `01 01 01 01` (`1-*` loops). |
 | 0x0A08–0x0A3F | —         | —      | (unk) | mixed 0/1   | UNCERTAIN | Control block, not a flat per-step AUX1 array. Device-saved defaults show zeros with a trailing `01 01 01 01` at `0x0A38..0x0A3B`. |
-| 0x0A40–?      | —         | —      | (unk) | 0/1         | UNCERTAIN | Mostly binary. AUX2 is NOT here — it's at 0x00C0 in Section A. |
+| 0x0A40–?      | —         | —      | (unk) | 0/1         | UNCERTAIN | Mostly binary. |
 | 0x0C00–0x18FF | —         | —      | Evolve LFO + Macro Pots | — | UNCERTAIN | Partially decoded. See Evolve notes below. |
 | 0x1900–0x193F | 1         | uint8  | AUX1 | 0         | UNCERTAIN | Experimental late-file AUX1 step array. Current working formula is channel-major order rotated left by 4 bytes. `data/2024-09-15/MAC0201_.TXT` shows only position `44` set; `MAC0204_.TXT` shows `0x12` at positions `44..59`. |
-| 0x1940–0x197F | 1         | uint8  | AUX2? | 0         | UNCERTAIN | Candidate late-file AUX2 step array with the same provisional indexing as `0x1900`. `MAC0204_.TXT` shows `0x0F` at positions `44..59`. This does not match the already-mapped `0x00C0` AUX2 block, so the relationship between the two regions is still unknown. |
+| 0x1940–0x197F | 1         | uint8  | AUX2 | 0         | UNCERTAIN | Experimental late-file AUX2 step array. Current working formula is channel-major order rotated left by 4 bytes. `MAC0204_.TXT` shows `0x0F` at positions `44..59`. |
 | 0x1980–0x1B7F | —         | —      | (unk) | —         | UNCERTAIN | Remaining late-file region not yet decoded. |
 
 **Evolve LFO observations:**
@@ -188,9 +182,9 @@ These are encoded as `SECTION_B_REQUIRED` in `src/fluxmo/preset.py` and applied 
 
 ## AUX Mode Index Table
 
-The mapped `0x00C0` AUX2 block and the late-file AUX arrays use these mode
-indices per step (uint8, 0-indexed). `AUX1` at `0x1900` currently uses the
-experimental rotated channel-major slot formula described above:
+The late-file AUX arrays at `0x1900` and `0x1940` use these mode indices per
+step (uint8, 0-indexed). They currently use the experimental rotated
+channel-major slot formula described above:
 
 | Index | Name    | Index   | Name         |
 |-------|---------|---------|--------------|

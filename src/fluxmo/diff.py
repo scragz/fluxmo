@@ -8,7 +8,7 @@ on the device, saving, and comparing the before/after files.
 from .preset import (
     STEP_ARRAYS_U8, OFFSET_PHAS, OFFSET_MINV, OFFSET_MAXV, OFFSET_FREQ,
     OFFSET_CH_RECORDS, CH_RECORD_SIZE, CH_BPM_IDX, CH_CURV_IDX,
-    CH_VELO_IDX, CH_SH16_IDX,
+    CH_VELO_IDX, CH_SH16_IDX, OFFSET_AUX1_CANDIDATE, OFFSET_AUX2_CANDIDATE,
 )
 
 
@@ -53,6 +53,14 @@ def diff_presets(path_a: str, path_b: str):
 
 def _offset_note(off: int) -> str:
     """Return a human-readable note about what lives at this offset, if known."""
+    if OFFSET_AUX1_CANDIDATE <= off < OFFSET_AUX1_CANDIDATE + 64:
+        ch, step = _late_aux_position(off - OFFSET_AUX1_CANDIDATE)
+        return f"AUX1 [ch{ch+1} step{step+1}] (UNCERTAIN late-file array)"
+
+    if OFFSET_AUX2_CANDIDATE <= off < OFFSET_AUX2_CANDIDATE + 64:
+        ch, step = _late_aux_position(off - OFFSET_AUX2_CANDIDATE)
+        return f"AUX2 [ch{ch+1} step{step+1}] (UNCERTAIN late-file array)"
+
     for array_off, (name, cert) in STEP_ARRAYS_U8.items():
         if array_off <= off < array_off + 64:
             idx = off - array_off
@@ -100,6 +108,13 @@ def _offset_note(off: int) -> str:
         return "end section (UNCERTAIN — ON/OFF gen / macro state)"
 
     return "unknown"
+
+
+def _late_aux_position(idx: int) -> tuple[int, int]:
+    linear = (idx + 4) % 64
+    ch = linear // 16
+    step = linear % 16
+    return ch, step
 
 
 def hexdump(data: bytes, start: int = 0, length: int = 256, width: int = 16):

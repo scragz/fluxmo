@@ -169,7 +169,7 @@ These fields are accepted in `step_defaults` and in each step object.
 | `curv` | string or number | `1`, `2.0..8.5`, `NL2.0..NL4.4` | `1` | `curve` | Experimental per-step TM curve selector. Likely stored at `0x0280`. String labels are preferred; numeric input is accepted for non-`NL` labels. The current corpus only shows values up to `4.5`; higher labels come from the manual ordering. |
 | `leng` | integer | `1..32` | `1` | `length` | Step length in 16ths. Manual text and corpus both show values above 8; `0` is treated as invalid by the builder. |
 | `aux1` | integer or string | `0..112` | `0` | — | Experimental AUX1 mode index or mode name. Written to the late-file AUX block at `0x1900` using the current provisional slot formula. |
-| `aux2` | integer or string | `0..112` | `1` | — | AUX mode index or mode name. |
+| `aux2` | integer or string | `0..112` | `0` | — | Experimental AUX2 mode index or mode name. Written to the late-file AUX block at `0x1940` using the current provisional slot formula. |
 | `huma` | integer | `0..127` | `0` | — | Humanize amount. |
 | `phas` | integer | `0..360` | `0` | `phas_deg` | Phase in degrees. |
 | `cvsel` | integer | `0..9` | `0` | — | Uncertain field. |
@@ -265,7 +265,7 @@ If you omit a field entirely, these built-in defaults are used:
 | `curv` | `1` |
 | `leng` | `1` |
 | `aux1` | `0` (`OFF`) |
-| `aux2` | `1` (`ON`) |
+| `aux2` | `0` (`OFF`) |
 | `huma` | `0` |
 | `phas` | `0` |
 | `cvsel` | `0` |
@@ -351,9 +351,8 @@ Not yet accepted in JSON:
 - `SCAL`
 - Evolve / Macro Pot sections
 
-`AUX1` is accepted using the current provisional late-file mapping at `0x1900`.
-The old `0x0A00` mapping was wrong; that block is loop control. The related
-late-file `0x1940` AUX2-like region is still not wired into the builder.
+`AUX1` and `AUX2` are accepted using the current late-file mappings at `0x1900`
+and `0x1940`. The old `0x0A00`/`0x00C0` assumptions are no longer used.
 
 `CURV` is now accepted as an experimental per-step field based on probe preset
 evidence, the manual ordering, and user validation. The binary offset at `0x0280`
