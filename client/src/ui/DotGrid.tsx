@@ -199,13 +199,16 @@ function drawLatticeGrid(
   layouts: LaneLayout[],
   buttons: LatticeButtonLayout[],
 ) {
-  const paddingX = width * 0.08;
+  const paddingX = Math.max(44, width * 0.08);
   const paddingY = height * 0.12;
   const usableWidth = width - paddingX * 2;
   const usableHeight = height - paddingY * 2;
   const laneGap = Math.max(12, usableHeight * 0.04);
   const laneHeight = (usableHeight - laneGap * (state.channels.length - 1)) / Math.max(state.channels.length, 1);
-  const controlRailWidth = Math.min(92, usableWidth * 0.2);
+  const buttonSize = Math.min(24, Math.max(16, laneHeight - 18));
+  const badgeWidth = 26;
+  const buttonGap = 6;
+  const controlRailWidth = buttonSize * 2 + badgeWidth + buttonGap * 2 + 4;
   const timelineWidth = usableWidth - controlRailWidth - 14;
 
   state.channels.forEach((channel, channelIndex) => {
@@ -259,12 +262,10 @@ function drawLatticeGrid(
       });
     });
 
-    const buttonSize = Math.min(24, laneHeight - 18);
     const buttonY = laneMid - buttonSize / 2;
     const minusX = controlX;
-    const badgeX = minusX + buttonSize + 8;
-    const badgeWidth = 28;
-    const plusX = badgeX + badgeWidth + 8;
+    const badgeX = minusX + buttonSize + buttonGap;
+    const plusX = badgeX + badgeWidth + buttonGap;
 
     drawCanvasButton(ctx, minusX, buttonY, buttonSize, buttonSize, "-");
     drawCanvasButton(ctx, plusX, buttonY, buttonSize, buttonSize, "+");
@@ -300,7 +301,7 @@ function drawEnergyGrid(
   densityDeltas: number[][],
   layouts: LaneLayout[],
 ) {
-  const paddingX = width * 0.08;
+  const paddingX = Math.max(44, width * 0.08);
   const paddingY = height * 0.1;
   const usableWidth = width - paddingX * 2;
   const usableHeight = height - paddingY * 2;
