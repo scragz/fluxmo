@@ -18,11 +18,6 @@ export function JsonDrawer({ isOpen, onClose, json }: Props) {
           <X size={16} />
         </button>
       </div>
-      
-      <div className="p-4 bg-amber-500/10 border-b border-amber-500/20 text-amber-500 text-xs font-mono">
-        <p>⚠ val not yet emitted — add to fluxmo build format</p>
-        <p>⚠ comp not yet emitted — add to fluxmo build format</p>
-      </div>
 
       <div className="flex-1 overflow-auto p-4">
         <pre className="text-[10px] sm:text-xs font-mono text-zinc-300 whitespace-pre-wrap">
