@@ -1,4 +1,5 @@
 import React, { useReducer, useState, useEffect, useRef } from "react";
+import { SlidersHorizontal, X } from "lucide-react";
 import { reducer, initialState, LayerId } from "./store";
 import { LayerStrip } from "./ui/LayerStrip";
 import { BottomBar } from "./ui/BottomBar";
@@ -13,6 +14,7 @@ import { L3Transform } from "./pipeline/types";
 export default function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [jsonOpen, setJsonOpen] = useState(false);
+  const [controlsOpen, setControlsOpen] = useState(true);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -45,6 +47,35 @@ export default function App() {
 
   const offsetTransforms = state.pipeline.layers.l3.filter(t => t.type === "set_channel_offset") as Extract<L3Transform, { type: "set_channel_offset" }>[];
   const isOffset = offsetTransforms.length > 0 ? offsetTransforms[offsetTransforms.length - 1].enabled : false;
+  const baseLoopTransforms = state.pipeline.layers.l1.filter(t => t.type === "set_base_loop") as Extract<typeof state.pipeline.layers.l1[number], { type: "set_base_loop" }>[];
+  const densMapTransforms = state.pipeline.layers.l1.filter(t => t.type === "set_dens_map") as Extract<typeof state.pipeline.layers.l1[number], { type: "set_dens_map" }>[];
+  const l1BaseLoop = baseLoopTransforms.length > 0 ? baseLoopTransforms[baseLoopTransforms.length - 1].steps : 4;
+  const l1DensMap = densMapTransforms.length > 0 ? densMapTransforms[densMapTransforms.length - 1].mode : "proportional";
+
+  const controls = (
+    <>
+      {state.activeLayer === "l1" && (
+        <L1Lattice
+          state={state.l1State}
+          transforms={state.pipeline.layers.l1}
+          onTransform={(t) => dispatch({ type: "ADD_L1_TRANSFORM", transform: t })}
+        />
+      )}
+      {state.activeLayer === "l2" && (
+        <L2Constellation
+          state={state.l2State}
+          onTransform={(t) => dispatch({ type: "ADD_L2_TRANSFORM", transform: t })}
+        />
+      )}
+      {state.activeLayer === "l3" && (
+        <L3Energy
+          state={state.l3State}
+          transforms={state.pipeline.layers.l3}
+          onTransform={(t) => dispatch({ type: "ADD_L3_TRANSFORM", transform: t })}
+        />
+      )}
+    </>
+  );
 
   return (
     <div className="fixed inset-0 bg-zinc-950 text-white flex flex-col font-sans overflow-hidden">
@@ -65,6 +96,8 @@ export default function App() {
               width={dimensions.width}
               height={dimensions.height}
               isOffset={isOffset}
+              l1BaseLoop={l1BaseLoop}
+              l1DensMap={l1DensMap}
               onL3PointMove={(channel, step, curv, val) => {
                 dispatch({
                   type: "ADD_L3_TRANSFORM",
@@ -85,29 +118,39 @@ export default function App() {
               }}
             />
           )}
-        </div>
 
-        <div className="shrink-0 z-10 max-h-[50vh] overflow-y-auto">
-          {state.activeLayer === "l1" && (
-            <L1Lattice
-              state={state.l1State}
-              transforms={state.pipeline.layers.l1}
-              onTransform={(t) => dispatch({ type: "ADD_L1_TRANSFORM", transform: t })}
-            />
-          )}
-          {state.activeLayer === "l2" && (
-            <L2Constellation
-              state={state.l2State}
-              onTransform={(t) => dispatch({ type: "ADD_L2_TRANSFORM", transform: t })}
-            />
-          )}
-          {state.activeLayer === "l3" && (
-            <L3Energy
-              state={state.l3State}
-              transforms={state.pipeline.layers.l3}
-              onTransform={(t) => dispatch({ type: "ADD_L3_TRANSFORM", transform: t })}
-            />
-          )}
+          <div className="pointer-events-none absolute inset-x-3 bottom-3 top-3 z-20 flex items-end justify-end sm:inset-y-4 sm:right-4 sm:left-auto sm:items-start">
+            {!controlsOpen && (
+              <button
+                onClick={() => setControlsOpen(true)}
+                className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/12 bg-zinc-950/78 px-4 py-2 text-[11px] font-mono tracking-[0.24em] text-zinc-100 uppercase shadow-[0_18px_48px_rgba(0,0,0,0.28)] backdrop-blur-xl transition hover:border-white/20 hover:bg-zinc-900/82"
+              >
+                <SlidersHorizontal size={14} />
+                Controls
+              </button>
+            )}
+
+            {controlsOpen && (
+              <div className="pointer-events-auto w-full max-w-[26rem] overflow-hidden rounded-[28px] border border-white/10 bg-zinc-950/66 shadow-[0_30px_80px_rgba(0,0,0,0.42)] backdrop-blur-2xl">
+                <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+                  <div>
+                    <p className="text-[10px] font-mono uppercase tracking-[0.32em] text-zinc-400">Live Controls</p>
+                    <p className="mt-1 text-xs text-zinc-500">Tune the active layer without leaving the canvas.</p>
+                  </div>
+                  <button
+                    onClick={() => setControlsOpen(false)}
+                    className="rounded-full border border-white/10 p-2 text-zinc-400 transition hover:border-white/20 hover:text-white"
+                    aria-label="Hide controls"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="max-h-[min(32rem,calc(100vh-12rem))] overflow-y-auto">
+                  {controls}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

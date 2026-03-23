@@ -4,7 +4,6 @@ export function serialize(state: PresetState): string {
   const json = {
     version: 1,
     channels: state.channels.map(c => ({
-      bpm: c.bpm,
       velo: c.velo,
       sh16: c.sh16,
       steps: c.steps.map(s => ({

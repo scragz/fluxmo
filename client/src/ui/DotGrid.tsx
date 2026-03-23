@@ -8,6 +8,8 @@ interface Props {
   width: number;
   height: number;
   isOffset?: boolean;
+  l1BaseLoop?: number;
+  l1DensMap?: "proportional" | "inverse" | "flat";
   onL3PointMove?: (channel: number, step: number, curv: number, val: number) => void;
   onL3PointReset?: (channel: number, step: number) => void;
   onL2PhaseMove?: (channel: number, degrees: number) => void;
@@ -24,7 +26,18 @@ type DotTarget = {
   step: number;
 };
 
-export function DotGrid({ state, activeLayer, width, height, isOffset, onL3PointMove, onL3PointReset, onL2PhaseMove }: Props) {
+export function DotGrid({
+  state,
+  activeLayer,
+  width,
+  height,
+  isOffset,
+  l1BaseLoop,
+  l1DensMap,
+  onL3PointMove,
+  onL3PointReset,
+  onL2PhaseMove,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
   
@@ -52,21 +65,24 @@ export function DotGrid({ state, activeLayer, width, height, isOffset, onL3Point
         let x = 0, y = 0, radius = 4, opacity = 1;
 
         if (activeLayer === "l1") {
-          // Rectangular grid
-          const paddingX = width * 0.1;
-          const paddingY = height * 0.2;
+          const paddingX = width * 0.08;
+          const paddingY = height * 0.14;
           const usableWidth = width - paddingX * 2;
           const usableHeight = height - paddingY * 2;
-          
-          const stepWidth = usableWidth / 15; // max 16 steps
-          const rowHeight = usableHeight / 3; // 4 channels
+          const laneHeight = usableHeight / Math.max(state.channels.length, 1);
+          const stepWidth = usableWidth / Math.max(loopLength, 1);
+          const densityFraction = step.dens / Math.max(step.leng * 2, 1);
+          const absoluteDensity = Math.min(step.dens / 16, 1);
+          const densMapBias =
+            l1DensMap === "flat" ? 0.8 :
+            l1DensMap === "inverse" ? 0.95 :
+            1.1;
 
-          x = paddingX + i * stepWidth;
-          y = paddingY + c * rowHeight;
-          
-          // Size by leng, opacity by dens baseline
-          radius = 3 + step.leng * 0.5;
-          opacity = 0.2 + (step.dens / (step.leng * 2)) * 0.8;
+          x = paddingX + stepWidth * (i + 0.5);
+          y = paddingY + laneHeight * (c + 0.5);
+
+          radius = 4 + step.leng * 0.85 + absoluteDensity * 8 * densMapBias;
+          opacity = Math.min(0.98, 0.24 + densityFraction * 0.4 + absoluteDensity * 0.42);
 
         } else if (activeLayer === "l2") {
           // Radial arrangement
@@ -152,6 +168,45 @@ export function DotGrid({ state, activeLayer, width, height, isOffset, onL3Point
         }
       }
 
+      if (activeLayer === "l1") {
+        const paddingX = width * 0.08;
+        const paddingY = height * 0.14;
+        const usableWidth = width - paddingX * 2;
+        const usableHeight = height - paddingY * 2;
+        const laneHeight = usableHeight / Math.max(state.channels.length, 1);
+        const guideCount = Math.max(1, Math.min(16, l1BaseLoop ?? 4));
+
+        for (let g = 0; g <= guideCount; g++) {
+          const guideX = paddingX + (g / guideCount) * usableWidth;
+          ctx.beginPath();
+          ctx.moveTo(guideX, paddingY);
+          ctx.lineTo(guideX, paddingY + usableHeight);
+          ctx.strokeStyle = g === 0 || g === guideCount ? "#3f3f46" : "#27272a";
+          ctx.lineWidth = g === 0 || g === guideCount ? 1.5 : 1;
+          ctx.stroke();
+        }
+
+        state.channels.forEach((channel, c) => {
+          const avgDensity =
+            channel.steps.reduce((sum, step) => sum + step.dens, 0) / Math.max(channel.steps.length, 1);
+          const avgLength =
+            channel.steps.reduce((sum, step) => sum + step.leng, 0) / Math.max(channel.steps.length, 1);
+          const laneTop = paddingY + laneHeight * c + laneHeight * 0.18;
+          const laneInnerHeight = laneHeight * 0.64;
+          const densityAlpha = Math.min(0.22, avgDensity / 64);
+          const lengthWidth = usableWidth * Math.min(1, avgLength / Math.max(1, l1BaseLoop ?? 4));
+
+          ctx.fillStyle = COLORS[c];
+          ctx.globalAlpha = densityAlpha;
+          ctx.fillRect(paddingX, laneTop, lengthWidth, laneInnerHeight);
+          ctx.globalAlpha = 1;
+
+          ctx.strokeStyle = "#18181b";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(paddingX, laneTop, usableWidth, laneInnerHeight);
+        });
+      }
+
       // Draw L2 rings if active
       if (activeLayer === "l2") {
         ctx.lineWidth = 1;
@@ -224,11 +279,26 @@ export function DotGrid({ state, activeLayer, width, height, isOffset, onL3Point
           current.radius += (target.radius - current.radius) * lerpFactor;
           current.opacity += (target.opacity - current.opacity) * lerpFactor;
 
+          if (activeLayer === "l1") {
+            ctx.beginPath();
+            ctx.arc(current.x, current.y, current.radius * 1.65, 0, Math.PI * 2);
+            ctx.fillStyle = COLORS[c];
+            ctx.globalAlpha = current.opacity * 0.12;
+            ctx.fill();
+          }
+
           ctx.beginPath();
           ctx.arc(current.x, current.y, current.radius, 0, Math.PI * 2);
           ctx.fillStyle = COLORS[c];
           ctx.globalAlpha = current.opacity;
           ctx.fill();
+
+          if (activeLayer === "l1") {
+            ctx.strokeStyle = "#fafafa";
+            ctx.globalAlpha = current.opacity * 0.35;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
         }
       }
       ctx.globalAlpha = 1.0;

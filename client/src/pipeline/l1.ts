@@ -4,7 +4,6 @@ import { DEFAULT_PRESET, DEFAULT_STEP, clamp } from "./defaults";
 export function computeL1(transforms: L1Transform[]): PresetState {
   // Start with defaults
   let ratios = [4, 4, 4, 4];
-  let bpm = 120;
   let baseLoop = 4;
   let densMap: "proportional" | "inverse" | "flat" = "proportional";
   let lengMap: "fill" | "short" | "long" = "fill";
@@ -13,7 +12,6 @@ export function computeL1(transforms: L1Transform[]): PresetState {
   // Apply transforms (last wins)
   for (const t of transforms) {
     if (t.type === "set_ratios") ratios = [...t.ratios];
-    else if (t.type === "set_bpm") bpm = t.bpm;
     else if (t.type === "set_base_loop") baseLoop = t.steps;
     else if (t.type === "set_dens_map") densMap = t.mode;
     else if (t.type === "set_leng_map") lengMap = t.mode;
@@ -54,7 +52,6 @@ export function computeL1(transforms: L1Transform[]): PresetState {
 
     return {
       steps,
-      bpm,
       velo: velos[c],
       sh16: 0,
     };

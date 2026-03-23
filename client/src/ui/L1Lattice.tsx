@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { PresetState, L1Transform } from "../pipeline/types";
 
 interface Props {
@@ -27,21 +27,33 @@ export function L1Lattice({ state, onTransform, transforms }: Props) {
   const totalLcm = ratios.reduce((acc, val) => lcm(acc, val), 1);
 
   return (
-    <div className="p-4 flex flex-col gap-4 bg-zinc-950 border-t border-zinc-900">
-      <div className="flex flex-col gap-3 max-w-md mx-auto w-full bg-zinc-900/80 p-4 rounded-2xl border border-zinc-800">
+    <div className="p-4">
+      <div className="flex w-full flex-col gap-3 rounded-2xl border border-white/10 bg-zinc-900/72 p-4">
         
         <div className="flex justify-between items-center">
           <span className="text-xs font-mono text-zinc-500 w-16">RATIOS</span>
           <div className="flex gap-2">
             {ratios.map((r, i) => (
               <div key={i} className="flex flex-col items-center">
-                <button onClick={() => handleRatioChange(i, 1)} className="text-zinc-500 hover:text-white px-2 py-1 text-xs">+</button>
+                <button
+                  onClick={() => handleRatioChange(i, 1)}
+                  className="text-zinc-500 hover:text-white px-2 py-1 text-xs"
+                  aria-label={`Increase ratio channel ${i + 1}`}
+                >
+                  +
+                </button>
                 <div className={`w-8 h-8 flex items-center justify-center rounded bg-zinc-800 font-mono text-sm ${
                   i === 0 ? "text-orange-500" : i === 1 ? "text-green-500" : i === 2 ? "text-blue-500" : "text-red-500"
                 }`}>
                   {r}
                 </div>
-                <button onClick={() => handleRatioChange(i, -1)} className="text-zinc-500 hover:text-white px-2 py-1 text-xs">-</button>
+                <button
+                  onClick={() => handleRatioChange(i, -1)}
+                  className="text-zinc-500 hover:text-white px-2 py-1 text-xs"
+                  aria-label={`Decrease ratio channel ${i + 1}`}
+                >
+                  -
+                </button>
               </div>
             ))}
           </div>
@@ -50,11 +62,23 @@ export function L1Lattice({ state, onTransform, transforms }: Props) {
         <div className="flex justify-between items-center">
           <span className="text-xs font-mono text-zinc-500 w-16">BASE</span>
           <div className="flex items-center gap-2">
-            <button onClick={() => onTransform({ type: "set_base_loop", steps: Math.max(1, baseLoop - 1) })} className="text-zinc-500 hover:text-white px-2 py-1 text-xs">-</button>
+            <button
+              onClick={() => onTransform({ type: "set_base_loop", steps: Math.max(1, baseLoop - 1) })}
+              className="text-zinc-500 hover:text-white px-2 py-1 text-xs"
+              aria-label="Decrease lattice base"
+            >
+              -
+            </button>
             <div className="w-12 h-8 flex items-center justify-center rounded bg-zinc-800 font-mono text-sm text-zinc-300">
               {baseLoop}
             </div>
-            <button onClick={() => onTransform({ type: "set_base_loop", steps: Math.min(16, baseLoop + 1) })} className="text-zinc-500 hover:text-white px-2 py-1 text-xs">+</button>
+            <button
+              onClick={() => onTransform({ type: "set_base_loop", steps: Math.min(16, baseLoop + 1) })}
+              className="text-zinc-500 hover:text-white px-2 py-1 text-xs"
+              aria-label="Increase lattice base"
+            >
+              +
+            </button>
           </div>
         </div>
 
@@ -68,6 +92,7 @@ export function L1Lattice({ state, onTransform, transforms }: Props) {
                 <button
                   key={mode}
                   onClick={() => onTransform({ type: "set_dens_map", mode: mode as any })}
+                  aria-label={`Set density map ${mode}`}
                   className={`px-2 py-1 rounded text-[10px] font-mono uppercase transition-colors ${
                     activeDensMap === mode ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white hover:bg-zinc-800"
                   }`}
@@ -89,6 +114,7 @@ export function L1Lattice({ state, onTransform, transforms }: Props) {
                 <button
                   key={mode}
                   onClick={() => onTransform({ type: "set_leng_map", mode: mode as any })}
+                  aria-label={`Set length map ${mode}`}
                   className={`px-2 py-1 rounded text-[10px] font-mono uppercase transition-colors ${
                     activeLengMap === mode ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white hover:bg-zinc-800"
                   }`}
@@ -100,7 +126,7 @@ export function L1Lattice({ state, onTransform, transforms }: Props) {
           </div>
         </div>
 
-        <div className="text-[10px] font-mono text-zinc-500 mt-2 text-center">
+        <div className="mt-2 text-center text-[10px] font-mono text-zinc-500">
           LCM: {totalLcm} 16ths
         </div>
 

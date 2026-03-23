@@ -22,7 +22,6 @@ export const DEFAULT_STEP: StepState = {
 
 export const DEFAULT_CHANNEL: ChannelState = {
   steps: [ { ...DEFAULT_STEP } ],
-  bpm: 120,
   velo: 127,
   sh16: 0,
 };

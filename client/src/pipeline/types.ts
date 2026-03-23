@@ -20,7 +20,6 @@ export type StepState = {
 
 export type ChannelState = {
   steps: StepState[];
-  bpm: number;
   velo: number;
   sh16: number;
 };
@@ -31,7 +30,6 @@ export type PresetState = {
 
 export type L1Transform =
   | { type: "set_ratios"; ratios: number[] }
-  | { type: "set_bpm"; bpm: number }
   | { type: "set_base_loop"; steps: number }
   | { type: "set_dens_map"; mode: "proportional" | "inverse" | "flat" }
   | { type: "set_leng_map"; mode: "fill" | "short" | "long" }
