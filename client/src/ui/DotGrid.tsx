@@ -404,7 +404,7 @@ function drawPhaseRings(
   const ringGap = Math.min(width, height) * 0.095;
 
   state.channels.forEach((channel, channelIndex) => {
-    const { barLength, steps } = getStepTimelines(channel, { wrapPositions: true });
+    const { barLength, steps } = getStepTimelines(channel);
     const radius = baseRadius + channelIndex * ringGap;
     layouts.push({ channel: channelIndex, cx, cy, radius });
 
