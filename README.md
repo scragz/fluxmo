@@ -87,6 +87,7 @@ are preserved byte-for-byte.
 | `loop`    | Loop length 1–16                 | uint8  | 0x0000  | LIKELY    |
 | `gate`    | Trigger length % 0–99            | uint8  | 0x0040  | LIKELY    |
 | `leng`    | Step length in 16ths 1–16        | uint8  | 0x0080  | CONFIRMED |
+| `aux1`    | AUX1 mode index (experimental)   | uint8  | 0x1900  | UNCERTAIN |
 | `aux2`    | AUX2 mode index (see `map`)      | uint8  | 0x00C0  | LIKELY    |
 | `dens`    | Trigger density 0–64             | uint8  | 0x0200  | CONFIRMED |
 | `huma`    | Humanize 0–127                   | uint8  | 0x0340  | LIKELY    |
@@ -94,13 +95,17 @@ are preserved byte-for-byte.
 | `mod_bus` | Mod bus bitmask YEL=1,GRY=2,PUR=4 | uint8 | 0x0480  | CONFIRMED |
 | `prob_val`| Probability % 0–100             | uint8  | 0x0640  | LIKELY    |
 | `quan`    | Quantizer semitones 0–12         | uint8  | 0x07C0  | LIKELY    |
-| `aux1`    | AUX1 mode index (see `map`)      | uint8  | 0x0A00  | LIKELY    |
 | `minv`    | Min CV voltage mV (signed)       | int16  | 0x0500  | LIKELY    |
 | `maxv`    | Max CV voltage mV 0–8000         | uint16 | 0x0580  | CONFIRMED |
 | `freq`    | LFO frequency Hz                 | float  | 0x0680  | CONFIRMED |
 | `cvsel`   | LFO CV source 0–9                | uint8  | 0x0400  | UNCERTAIN |
 | `sync`    | LFO sync mode 0–4               | uint8  | 0x0440  | UNCERTAIN |
 | `s_h`     | Sample & Hold 0/1                | uint8  | 0x0780  | UNCERTAIN |
+
+`aux1` is now editable via the provisional late-file mapping at `0x1900`. The
+old `0x0A00` mapping was wrong; that block is loop control. The current working
+slot formula is based on corpus evidence, including `MAC0204_.TXT` where
+position `44` matches `CH4 step1`.
 
 Example:
 

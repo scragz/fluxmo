@@ -68,11 +68,22 @@ class BuildLoopInferenceTests(unittest.TestCase):
         self.assertEqual(parsed.get_step(0, 0)['LOOP'][0], '1-4')
         self.assertEqual(parsed.get_step(2, 0)['LOOP'][0], '1-8')
 
-    def test_aux1_is_rejected_until_remapped(self):
-        with self.assertRaisesRegex(ValueError, 'unknown field'):
-            FluxPreset.from_dict({
-                'step_defaults': {'aux1': 'ON'},
-            })
+    def test_aux1_serializes_to_provisional_late_aux_block(self):
+        preset = FluxPreset.from_dict({
+            'channels': [
+                {},
+                {},
+                {'steps': [{}, {}, {}, {'aux1': 'SOS'}]},
+                {'steps': [{'aux1': 'TL5'}]},
+            ],
+        })
+
+        raw = preset.to_bytes()
+
+        self.assertEqual(raw[0x1900 + 31], 3)
+        self.assertEqual(raw[0x1900 + 44], 18)
+        self.assertEqual(preset.get_step(2, 3)['AUX1'][0], 'SOS')
+        self.assertEqual(preset.get_step(3, 0)['AUX1'][0], 'TL5')
 
     def test_channel_curv_is_rejected_until_remapped(self):
         with self.assertRaisesRegex(ValueError, 'unknown field'):

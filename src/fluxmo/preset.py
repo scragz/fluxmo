@@ -227,6 +227,15 @@ OFFSET_MAXV = 0x0580  # CONFIRMED — 64 × uint16 LE
 # FREQ: CV LFO frequency in Hz, stored as float32
 OFFSET_FREQ = 0x0680  # CONFIRMED — 64 × float32 LE
 
+# Candidate late-file AUX arrays observed in device-saved presets.
+# Current working slot formula is a channel-major 64-slot array rotated left by
+# 4 bytes. That satisfies the observed corpus facts:
+# - data/2024-09-15/MAC0204_.TXT: position 44 (0x2C) = CH4 step1
+# - data/2024-09-15/MAC0202_.TXT: positions 44..59 form a full 16-step run
+# This remains provisional, but parse+write round-trips preserve raw bytes.
+OFFSET_AUX1_CANDIDATE = 0x1900
+OFFSET_AUX2_CANDIDATE = 0x1940
+
 # Loop sequence control bytes (per channel, not per step).
 # Hardware correlates these with the displayed loop range:
 #   0x0A00..0x0A03 = loop end (1..16)
@@ -562,6 +571,7 @@ STEP_PARAM_SPECS = {
         "tm_curv", "u8", "LIKELY", 0, 0, len(CURVE_LABELS) - 1, "CURV", ("curve",)
     ),
     "leng": ParamSpec("leng", "u8", "CONFIRMED", 1, 1, 32, "LENG", ("length",)),
+    "aux1": ParamSpec("aux1", "u8", "UNCERTAIN", 0, 0, len(AUX_MODES) - 1, "AUX1"),
     "aux2": ParamSpec("aux2", "u8", "LIKELY", 1, 0, len(AUX_MODES) - 1, "AUX2"),
     "huma": ParamSpec("huma", "u8", "LIKELY", 0, 0, 127, "HUMA"),
     "val": ParamSpec("val", "f32", "CONFIRMED", 0.0, None, None, "VAL"),
@@ -741,6 +751,10 @@ class FluxPreset:
         ]
         self.leng = [
             [STEP_PARAM_SPECS["leng"].default] * STEPS_PER_CHANNEL
+            for _ in range(CHANNEL_COUNT)
+        ]
+        self.aux1 = [
+            [STEP_PARAM_SPECS["aux1"].default] * STEPS_PER_CHANNEL
             for _ in range(CHANNEL_COUNT)
         ]
         self.aux2 = [
@@ -976,6 +990,12 @@ class FluxPreset:
         """Linear index for channel/step combo."""
         return step * CHANNEL_COUNT + ch
 
+    def _late_aux_slot(self, ch: int, step: int) -> int:
+        """Provisional slot mapping for late-file AUX arrays at 0x1900/0x1940."""
+        return (ch * STEPS_PER_CHANNEL + step - CHANNEL_COUNT) % (
+            CHANNEL_COUNT * STEPS_PER_CHANNEL
+        )
+
     def _normalize_values(
         self,
         values,
@@ -1003,7 +1023,7 @@ class FluxPreset:
         return normalized
 
     def _coerce_value(self, spec: ParamSpec, value, path: str) -> int | float:
-        if spec.attr == "aux2":
+        if spec.attr in {"aux1", "aux2"}:
             value = _parse_aux_mode(value)
         elif spec.attr == "tm_curv":
             value = _parse_curve(value)
@@ -1067,8 +1087,10 @@ class FluxPreset:
         for ch in range(CHANNEL_COUNT):
             for step in range(STEPS_PER_CHANNEL):
                 idx = self._slot(ch, step)
+                aux_idx = self._late_aux_slot(ch, step)
                 self.gate[ch][step] = safe_u8(0x0040 + idx)
                 self.leng[ch][step] = safe_u8(0x0080 + idx)
+                self.aux1[ch][step] = safe_u8(OFFSET_AUX1_CANDIDATE + aux_idx)
                 self.aux2[ch][step] = safe_u8(0x00C0 + idx)
                 self.dens[ch][step] = safe_u8(0x0200 + idx)
                 self.tm_curv[ch][step] = safe_u8(0x0280 + idx)
@@ -1116,9 +1138,11 @@ class FluxPreset:
         for ch in range(CHANNEL_COUNT):
             for step in range(STEPS_PER_CHANNEL):
                 idx = self._slot(ch, step)
+                aux_idx = self._late_aux_slot(ch, step)
                 d[0x0000 + idx] = loop_end_by_channel[ch] & 0xFF
                 d[0x0040 + idx] = self.gate[ch][step] & 0xFF
                 d[0x0080 + idx] = self.leng[ch][step] & 0xFF
+                d[OFFSET_AUX1_CANDIDATE + aux_idx] = self.aux1[ch][step] & 0xFF
                 d[0x00C0 + idx] = self.aux2[ch][step] & 0xFF
                 d[0x0200 + idx] = self.dens[ch][step] & 0xFF
                 d[0x0280 + idx] = self.tm_curv[ch][step] & 0xFF
@@ -1209,6 +1233,7 @@ class FluxPreset:
             row("LENG", self.leng[ch])
             row("LOOP", [self._loop_label(ch)] * STEPS_PER_CHANNEL, width=4)
             row("PHAS°", self.phas[ch])
+            row("AUX1", self.aux1[ch], mapper=aux_name, width=5)
             row("AUX2", self.aux2[ch], mapper=aux_name, width=5)
             row("MOD", self.mod_bus[ch], mapper=mod_bus_name)
             row("PROB", self.prob_val[ch])
@@ -1233,6 +1258,7 @@ class FluxPreset:
             "GATE%": (self.gate[ch][step], "LIKELY"),
             "LENG": (self.leng[ch][step], "CONFIRMED"),
             "PHAS_deg": (self.phas[ch][step], "CONFIRMED"),
+            "AUX1": (aux_name(self.aux1[ch][step]), "UNCERTAIN"),
             "AUX2": (aux_name(self.aux2[ch][step]), "LIKELY"),
             "MOD_BUS": (mod_bus_name(self.mod_bus[ch][step]), "CONFIRMED"),
             "PROB_VAL": (self.prob_val[ch][step], "LIKELY"),

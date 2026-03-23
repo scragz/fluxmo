@@ -20,7 +20,7 @@ import os
 import sys
 
 from src.fluxmo.pref import FluxPrefs
-from src.fluxmo.preset import FluxPreset, AUX_MODES, STEP_ARRAYS_U8, STEP_PARAM_SPECS, OFFSET_PHAS, OFFSET_MINV, OFFSET_MAXV, OFFSET_FREQ, OFFSET_CH_RECORDS, CH_RECORD_SIZE, CH_CURV_IDX, CH_VELO_IDX, CH_SH16_IDX, CH_BPM_IDX
+from src.fluxmo.preset import FluxPreset, AUX_MODES, STEP_ARRAYS_U8, STEP_PARAM_SPECS, OFFSET_PHAS, OFFSET_MINV, OFFSET_MAXV, OFFSET_FREQ, OFFSET_CH_RECORDS, CH_RECORD_SIZE, CH_CURV_IDX, CH_VELO_IDX, CH_SH16_IDX, CH_BPM_IDX, OFFSET_AUX1_CANDIDATE, OFFSET_AUX2_CANDIDATE
 from src.fluxmo.diff import diff_presets, hexdump
 
 
@@ -42,6 +42,7 @@ Editable parameters (confirmed/likely):
   gate       Trigger length % 0–99            uint8  offset 0x0040
   curv       TM curve label                   u8     offset 0x0280 (likely; accepts 1, 2.0.., NL2.0..)
   leng       Step length in 16ths 1–32        uint8  offset 0x0080
+  aux1       AUX1 mode index (experimental)   uint8  offset 0x1900 (provisional late AUX indexing)
   aux2       AUX2 mode index (see map)         uint8  offset 0x00C0
   dens       Trigger density 0–64             uint8  offset 0x0200
   huma       Humanize 0–127                   uint8  offset 0x0340
@@ -92,7 +93,7 @@ def cmd_set(path, param, ch_s, step_s, val_s, out_path=None):
     _, typ = SET_PARAMS[param]
     if typ == 'f32':
         val = float(val_s)
-    elif param in {'aux2', 'mod_bus', 'curv'}:
+    elif param in {'aux1', 'aux2', 'mod_bus', 'curv'}:
         val = val_s
     else:
         val = int(val_s, 0) if val_s.startswith('0x') else int(val_s)
@@ -147,6 +148,16 @@ def cmd_map():
     print(f"  0x{OFFSET_FREQ:04X}   float32 {'FREQ_Hz':<12}  CONFIRMED  (64×4 bytes)")
     print("  0x0A00   u8×4   LOOP_END      CONFIRMED  (per-channel sequence end)")
     print("  0x0A04   u8×4   LOOP_START    CONFIRMED  (per-channel sequence start)")
+    print()
+    print("Late-file AUX arrays:")
+    print(
+        f"  0x{OFFSET_AUX1_CANDIDATE:04X}   u8×64  AUX1          UNCERTAIN  "
+        "experimental late-file array; channel-major rotated left by 4"
+    )
+    print(
+        f"  0x{OFFSET_AUX2_CANDIDATE:04X}   u8×64  AUX2?         TBD        "
+        "candidate array with the same provisional indexing as 0x1900"
+    )
     print()
     print("Per-channel records (4 × 128 bytes starting at 0x1B80):")
     print(f"  CH idx  u16[{CH_CURV_IDX}]=UNKNOWN?  u16[{CH_VELO_IDX}]=VELO  u16[{CH_SH16_IDX}]=SH16  u16[{CH_BPM_IDX}]=BPM")

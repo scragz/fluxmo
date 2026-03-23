@@ -66,11 +66,11 @@ Each entry covers all 64 step slots. Unless noted, each is 64 bytes (1 byte/slot
 | 0x0780        | 1         | uint8     | S+H     | 0       | UNCERTAIN | Sample & Hold (0=OFF, 1=ON). Binary values only. |
 | 0x07C0        | 1         | uint8     | QUAN    | 12      | LIKELY    | Quantizer semitones (12=chromatic). Previously mislabeled AUX2. AUX2 is at 0x00C0. |
 
-**Still unlocated from RHYTHMS/LFO pages:**
+**Still unlocated or only partially located from RHYTHMS/LFO pages:**
 
 | Parameter | Range      | Notes |
 |-----------|------------|-------|
-| AUX1      | 0–119      | Unlocated | Previously mapped to `0x0A00`, but that block is now identified as loop control. |
+| AUX1      | 0–119      | Candidate array at `0x1900` | Device-saved presets show non-zero AUX-like bytes here. Current working formula is channel-major order rotated left by 4 bytes, which matches `MAC0204_.TXT` (`position 44 = CH4 step1`, `44..59` = full CH4 run). This is now used for read/write as an experimental mapping. |
 | COMP      | −99..+99   | Signed, used occasionally. Zero in all 87 corpus files. |
 | DIFF      | 0          | Always zero per user. |
 | CURV      | enumerated | Likely at `0x0280` as a uint8 per step. Current working label order: `1`, `2.0..8.5`, `NL2.0..NL4.4`. Saved presets seen so far only reach `4.5`; the higher labels are manual-derived and still need more device validation. |
@@ -96,7 +96,10 @@ A second set of per-step parameters begins at 0x0800. Structure less mapped than
 | 0x0A04–0x0A07 | 1 / channel | uint8 | LOOP_START | 1     | LIKELY    | Per-channel sequence start. All checked corpus presets use `01 01 01 01` (`1-*` loops). |
 | 0x0A08–0x0A3F | —         | —      | (unk) | mixed 0/1   | UNCERTAIN | Control block, not a flat per-step AUX1 array. Device-saved defaults show zeros with a trailing `01 01 01 01` at `0x0A38..0x0A3B`. |
 | 0x0A40–?      | —         | —      | (unk) | 0/1         | UNCERTAIN | Mostly binary. AUX2 is NOT here — it's at 0x00C0 in Section A. |
-| 0x0C00–0x1B7F | —         | —      | Evolve LFO + Macro Pots | — | UNCERTAIN | Partially decoded. See Evolve notes below. |
+| 0x0C00–0x18FF | —         | —      | Evolve LFO + Macro Pots | — | UNCERTAIN | Partially decoded. See Evolve notes below. |
+| 0x1900–0x193F | 1         | uint8  | AUX1 | 0         | UNCERTAIN | Experimental late-file AUX1 step array. Current working formula is channel-major order rotated left by 4 bytes. `data/2024-09-15/MAC0201_.TXT` shows only position `44` set; `MAC0204_.TXT` shows `0x12` at positions `44..59`. |
+| 0x1940–0x197F | 1         | uint8  | AUX2? | 0         | UNCERTAIN | Candidate late-file AUX2 step array with the same provisional indexing as `0x1900`. `MAC0204_.TXT` shows `0x0F` at positions `44..59`. This does not match the already-mapped `0x00C0` AUX2 block, so the relationship between the two regions is still unknown. |
+| 0x1980–0x1B7F | —         | —      | (unk) | —         | UNCERTAIN | Remaining late-file region not yet decoded. |
 
 **Evolve LFO observations:**
 - 0x0EA0–0x0EDF: 64 bytes all = 200 (0xC8) in device-saved defaults. Unknown param.
@@ -185,7 +188,9 @@ These are encoded as `SECTION_B_REQUIRED` in `src/fluxmo/preset.py` and applied 
 
 ## AUX Mode Index Table
 
-AUX2 stores one of these indices per step (uint8, 0-indexed). AUX1 is still unlocated:
+The mapped `0x00C0` AUX2 block and the late-file AUX arrays use these mode
+indices per step (uint8, 0-indexed). `AUX1` at `0x1900` currently uses the
+experimental rotated channel-major slot formula described above:
 
 | Index | Name    | Index   | Name         |
 |-------|---------|---------|--------------|

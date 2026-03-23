@@ -168,6 +168,7 @@ These fields are accepted in `step_defaults` and in each step object.
 | `dens` | integer | `0..64` | `1` | — | Trigger density. |
 | `curv` | string or number | `1`, `2.0..8.5`, `NL2.0..NL4.4` | `1` | `curve` | Experimental per-step TM curve selector. Likely stored at `0x0280`. String labels are preferred; numeric input is accepted for non-`NL` labels. The current corpus only shows values up to `4.5`; higher labels come from the manual ordering. |
 | `leng` | integer | `1..32` | `1` | `length` | Step length in 16ths. Manual text and corpus both show values above 8; `0` is treated as invalid by the builder. |
+| `aux1` | integer or string | `0..112` | `0` | — | Experimental AUX1 mode index or mode name. Written to the late-file AUX block at `0x1900` using the current provisional slot formula. |
 | `aux2` | integer or string | `0..112` | `1` | — | AUX mode index or mode name. |
 | `huma` | integer | `0..127` | `0` | — | Humanize amount. |
 | `phas` | integer | `0..360` | `0` | `phas_deg` | Phase in degrees. |
@@ -183,7 +184,7 @@ These fields are accepted in `step_defaults` and in each step object.
 
 ## Symbolic String Values
 
-### `aux2`
+### `aux1`, `aux2`
 
 These fields accept either:
 
@@ -263,6 +264,7 @@ If you omit a field entirely, these built-in defaults are used:
 | `dens` | `1` |
 | `curv` | `1` |
 | `leng` | `1` |
+| `aux1` | `0` (`OFF`) |
 | `aux2` | `1` (`ON`) |
 | `huma` | `0` |
 | `phas` | `0` |
@@ -337,7 +339,6 @@ Only parameters already mapped in the binary parser are supported here.
 
 Not yet accepted in JSON:
 
-- `AUX1`
 - `COMP`
 - `DIFF`
 - `MASK`
@@ -349,6 +350,10 @@ Not yet accepted in JSON:
 - `RCUR`
 - `SCAL`
 - Evolve / Macro Pot sections
+
+`AUX1` is accepted using the current provisional late-file mapping at `0x1900`.
+The old `0x0A00` mapping was wrong; that block is loop control. The related
+late-file `0x1940` AUX2-like region is still not wired into the builder.
 
 `CURV` is now accepted as an experimental per-step field based on probe preset
 evidence, the manual ordering, and user validation. The binary offset at `0x0280`
