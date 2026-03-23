@@ -34,6 +34,12 @@ def _json_error(message: str, status: int) -> Response:
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
+        from urllib.parse import urlparse
+
+        path = urlparse(request.url).path
+        if not path.startswith("/api/"):
+            return await self.env.ASSETS.fetch(request)
+
         if request.method == "OPTIONS":
             return Response(None, status=204, headers=_headers())
 
@@ -42,7 +48,9 @@ class Default(WorkerEntrypoint):
 
         content_type = request.headers.get("content-type", "")
         if "application/json" not in content_type.lower():
-            return _json_error("Unsupported content type. Expected application/json.", 415)
+            return _json_error(
+                "Unsupported content type. Expected application/json.", 415
+            )
 
         try:
             payload = await request.json()
@@ -56,9 +64,11 @@ class Default(WorkerEntrypoint):
 
         return Response(
             preset_bytes,
-            headers=_headers({
-                "content-type": "application/octet-stream",
-                "content-disposition": 'attachment; filename="preset.TXT"',
-                "cache-control": "no-store",
-            }),
+            headers=_headers(
+                {
+                    "content-type": "application/octet-stream",
+                    "content-disposition": 'attachment; filename="preset.TXT"',
+                    "cache-control": "no-store",
+                }
+            ),
         )
