@@ -862,15 +862,19 @@ class FluxPreset:
         return p
 
     @classmethod
-    def from_json_file(cls, path: str) -> "FluxPreset":
+    def from_json_text(cls, text: str, source: str = "inline JSON") -> "FluxPreset":
         try:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
+            data = json.loads(text)
         except json.JSONDecodeError as exc:
             raise ValueError(
-                f"Invalid JSON in {path}: {exc.msg} at line {exc.lineno} column {exc.colno}"
+                f"Invalid JSON in {source}: {exc.msg} at line {exc.lineno} column {exc.colno}"
             ) from exc
         return cls.from_dict(data)
+
+    @classmethod
+    def from_json_file(cls, path: str) -> "FluxPreset":
+        with open(path, "r", encoding="utf-8") as f:
+            return cls.from_json_text(f.read(), path)
 
     @classmethod
     def from_dict(cls, data: dict) -> "FluxPreset":
@@ -1263,3 +1267,13 @@ class FluxPreset:
         start = self.loop_start[ch]
         end = self.loop_end[ch]
         return str(start) if start == end else f"{start}-{end}"
+
+
+def build_preset_bytes(data: dict) -> bytes:
+    """Build a preset binary from decoded JSON data without touching the filesystem."""
+    return FluxPreset.from_dict(data).to_bytes()
+
+
+def build_preset_bytes_from_json(text: str, source: str = "inline JSON") -> bytes:
+    """Build a preset binary directly from a JSON string without touching the filesystem."""
+    return FluxPreset.from_json_text(text, source).to_bytes()
