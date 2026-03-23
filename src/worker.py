@@ -41,7 +41,7 @@ class Default(WorkerEntrypoint):
             return await self.env.ASSETS.fetch(request)
 
         if request.method == "OPTIONS":
-            return Response(None, status=204, headers=_headers())
+            return Response(status=204, headers=_headers())
 
         if request.method != "POST":
             return _json_error("Method not allowed. Use POST.", 405)
