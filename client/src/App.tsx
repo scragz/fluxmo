@@ -1,0 +1,240 @@
+import React, { useReducer, useState, useEffect, useRef } from "react";
+import { SlidersHorizontal, X } from "lucide-react";
+import { reducer, initialState } from "./store";
+import { LayerStrip } from "./ui/LayerStrip";
+import { BottomBar } from "./ui/BottomBar";
+import { JsonDrawer } from "./ui/JsonDrawer";
+import { DotGrid } from "./ui/DotGrid";
+import { L1Lattice } from "./ui/L1Lattice";
+import { L2Constellation } from "./ui/L2Constellation";
+import { L3Energy } from "./ui/L3Energy";
+import { serialize } from "./pipeline/serialize";
+
+const DEFAULT_EXPORT_ENDPOINT = "/api/export";
+
+function getExportEndpoint(): string {
+  return import.meta.env.VITE_EXPORT_ENDPOINT?.trim() || DEFAULT_EXPORT_ENDPOINT;
+}
+
+function parseDownloadFilename(contentDisposition: string | null, fallbackName: string): string {
+  if (!contentDisposition) {
+    return fallbackName;
+  }
+
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+
+  const asciiMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+  if (asciiMatch) {
+    return asciiMatch[1];
+  }
+
+  return fallbackName;
+}
+
+export default function App() {
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const [jsonOpen, setJsonOpen] = useState(false);
+  const [controlsOpen, setControlsOpen] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setDimensions({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        });
+      }
+    });
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const handleExport = async () => {
+    if (isExporting) {
+      return;
+    }
+
+    setIsExporting(true);
+
+    try {
+      const response = await fetch(getExportEndpoint(), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: serialize(state.l3State),
+      });
+
+      if (!response.ok) {
+        let message = `Export failed with status ${response.status}.`;
+        const contentType = response.headers.get("content-type") ?? "";
+
+        try {
+          if (contentType.includes("application/json")) {
+            const payload = await response.json() as { error?: string };
+            if (payload.error) {
+              message = payload.error;
+            }
+          } else {
+            const text = (await response.text()).trim();
+            if (text) {
+              message = text;
+            }
+          }
+        } catch {
+          // Ignore body parse failures and keep the status-based fallback message.
+        }
+
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const fallbackName = `${state.pipeline.name || "preset"}.TXT`;
+
+      link.href = downloadUrl;
+      link.download = parseDownloadFilename(
+        response.headers.get("content-disposition"),
+        fallbackName,
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error("Preset export failed", error);
+      alert(error instanceof Error ? error.message : "Preset export failed.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const activeState =
+    state.activeLayer === "l1" ? state.l1State :
+    state.activeLayer === "l2" ? state.l2State :
+    state.l3State;
+
+  const controls = (
+    <>
+      {state.activeLayer === "l1" && (
+        <L1Lattice
+          state={state.l1State}
+          transforms={state.pipeline.layers.l1}
+          onTransform={(t) => dispatch({ type: "ADD_L1_TRANSFORM", transform: t })}
+        />
+      )}
+      {state.activeLayer === "l2" && (
+        <L2Constellation
+          state={state.l2State}
+          transforms={state.pipeline.layers.l2}
+          onTransform={(t) => dispatch({ type: "ADD_L2_TRANSFORM", transform: t })}
+        />
+      )}
+      {state.activeLayer === "l3" && (
+        <L3Energy
+          state={state.l3State}
+          baseState={state.l2State}
+          transforms={state.pipeline.layers.l3}
+          onTransform={(t) => dispatch({ type: "ADD_L3_TRANSFORM", transform: t })}
+        />
+      )}
+    </>
+  );
+
+  return (
+    <div className="fixed inset-0 bg-zinc-950 text-white flex flex-col font-sans overflow-hidden">
+      <LayerStrip
+        activeLayer={state.activeLayer}
+        onSelect={(layer) => dispatch({ type: "SET_ACTIVE_LAYER", layer })}
+        l1Configured={state.pipeline.layers.l1.length > 0}
+        l2Configured={state.pipeline.layers.l2.length > 0}
+        l3Configured={state.pipeline.layers.l3.length > 0}
+      />
+
+      <div className="flex-1 flex flex-col relative overflow-hidden">
+        <div className="flex-1 relative" ref={containerRef}>
+          {dimensions.width > 0 && (
+            <DotGrid
+              state={activeState}
+              activeLayer={state.activeLayer}
+              width={dimensions.width}
+              height={dimensions.height}
+              l2Transforms={state.pipeline.layers.l2}
+              l3BaseState={state.l2State}
+              l3Transforms={state.pipeline.layers.l3}
+              onL3DensityChange={(channel, step, amount) => {
+                dispatch({
+                  type: "ADD_L3_TRANSFORM",
+                  transform: { type: "set_density_delta", channel: channel as 0|1|2|3, step, amount }
+                });
+              }}
+              onL2PhaseMove={(channel, degrees) => {
+                dispatch({
+                  type: "ADD_L2_TRANSFORM",
+                  transform: { type: "set_phase", channel: channel as 0|1|2|3, degrees }
+                });
+              }}
+            />
+          )}
+
+          <div className="pointer-events-none absolute inset-x-3 bottom-3 top-3 z-20 flex items-end justify-end sm:inset-y-4 sm:right-4 sm:left-auto sm:items-start">
+            {!controlsOpen && (
+              <button
+                onClick={() => setControlsOpen(true)}
+                className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/12 bg-zinc-950/78 px-4 py-2 text-[11px] font-mono tracking-[0.24em] text-zinc-100 uppercase shadow-[0_18px_48px_rgba(0,0,0,0.28)] backdrop-blur-xl transition hover:border-white/20 hover:bg-zinc-900/82"
+              >
+                <SlidersHorizontal size={14} />
+                Controls
+              </button>
+            )}
+
+            {controlsOpen && (
+              <div className="pointer-events-auto w-full max-w-[26rem] overflow-hidden rounded-[28px] border border-white/10 bg-zinc-950/66 shadow-[0_30px_80px_rgba(0,0,0,0.42)] backdrop-blur-2xl">
+                <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+                  <div>
+                    <p className="text-[10px] font-mono uppercase tracking-[0.32em] text-zinc-400">Live Controls</p>
+                    <p className="mt-1 text-xs text-zinc-500">Tune the active layer without leaving the canvas.</p>
+                  </div>
+                  <button
+                    onClick={() => setControlsOpen(false)}
+                    className="rounded-full border border-white/10 p-2 text-zinc-400 transition hover:border-white/20 hover:text-white"
+                    aria-label="Hide controls"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="max-h-[min(32rem,calc(100vh-12rem))] overflow-y-auto">
+                  {controls}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <JsonDrawer
+        isOpen={jsonOpen}
+        onClose={() => setJsonOpen(false)}
+        json={serialize(state.l3State)}
+      />
+
+      <BottomBar
+        onToggleJson={() => setJsonOpen(!jsonOpen)}
+        onExport={handleExport}
+        onUndo={() => dispatch({ type: "UNDO", layer: state.activeLayer })}
+        canUndo={state.pipeline.layers[state.activeLayer].length > 0}
+        isExporting={isExporting}
+      />
+    </div>
+  );
+}

@@ -91,6 +91,8 @@ are preserved byte-for-byte.
 | `aux1`    | AUX1 mode index (experimental)   | uint8  | 0x1900  | UNCERTAIN |
 | `aux2`    | AUX2 mode index (experimental)   | uint8  | 0x1940  | UNCERTAIN |
 | `dens`    | Trigger density 0–64             | uint8  | 0x0200  | CONFIRMED |
+| `val`     | TM value                         | float32| 0x0100  | CONFIRMED |
+| `comp`    | Curve compression % -99..99      | int8   | 0x0240 / 0x02C0 | CONFIRMED |
 | `huma`    | Humanize 0–127                   | uint8  | 0x0340  | LIKELY    |
 | `phas`    | Phase shift degrees 0–360        | uint16 | 0x0380  | CONFIRMED |
 | `mod_bus` | Mod bus bitmask YEL=1,GRY=2,PUR=4 | uint8 | 0x0480  | CONFIRMED |
@@ -107,6 +109,10 @@ are preserved byte-for-byte.
 and `0x1940`. The current working slot formula is channel-major order rotated
 left by 4 bytes, based on corpus evidence including `MAC0204_.TXT` where
 position `44` matches `CH4 step1`.
+
+`val` is stored as a 64-entry step-major `float32` block at `0x0100`. `comp` is
+stored channel-major using the signed low-byte block at `0x0240`; the matching
+high-byte block at `0x02C0` stays `0x00` for normal `-99..99` values.
 
 `curv` is now mapped as a confirmed step-major enum at `0x00C0`. Device probes
 show `0x01 = 1`, `0x02 = 2.0`, and `0x03 = 2.1`.

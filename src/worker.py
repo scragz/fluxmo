@@ -5,21 +5,38 @@ from workers import Response, WorkerEntrypoint
 
 from fluxmo.preset import build_preset_bytes
 
+CORS_HEADERS = {
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "POST, OPTIONS",
+    "access-control-allow-headers": "content-type",
+    "access-control-expose-headers": "content-disposition, content-type",
+}
+
 
 def _payload_to_python(payload):
     return payload.to_py() if hasattr(payload, "to_py") else payload
+
+
+def _headers(extra: dict[str, str] | None = None) -> dict[str, str]:
+    headers = dict(CORS_HEADERS)
+    if extra:
+        headers.update(extra)
+    return headers
 
 
 def _json_error(message: str, status: int) -> Response:
     return Response(
         JSON.stringify({"error": message}),
         status=status,
-        headers={"content-type": "application/json; charset=utf-8"},
+        headers=_headers({"content-type": "application/json; charset=utf-8"}),
     )
 
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
+        if request.method == "OPTIONS":
+            return Response(None, status=204, headers=_headers())
+
         if request.method != "POST":
             return _json_error("Method not allowed. Use POST.", 405)
 
@@ -39,9 +56,9 @@ class Default(WorkerEntrypoint):
 
         return Response(
             preset_bytes,
-            headers={
+            headers=_headers({
                 "content-type": "application/octet-stream",
                 "content-disposition": 'attachment; filename="preset.TXT"',
                 "cache-control": "no-store",
-            },
+            }),
         )

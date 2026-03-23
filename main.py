@@ -23,7 +23,7 @@ import os
 import sys
 
 from src.fluxmo.pref import FluxPrefs
-from src.fluxmo.preset import FluxPreset, AUX_MODES, STEP_ARRAYS_U8, STEP_PARAM_SPECS, OFFSET_PHAS, OFFSET_MINV, OFFSET_MAXV, OFFSET_FREQ, OFFSET_CH_RECORDS, CH_RECORD_SIZE, CH_CURV_IDX, CH_VELO_IDX, CH_SH16_IDX, CH_BPM_IDX, OFFSET_AUX1_CANDIDATE, OFFSET_AUX2_CANDIDATE
+from src.fluxmo.preset import FluxPreset, AUX_MODES, STEP_ARRAYS_U8, STEP_PARAM_SPECS, OFFSET_VAL, OFFSET_COMP_LO, OFFSET_COMP_HI, OFFSET_PHAS, OFFSET_MINV, OFFSET_MAXV, OFFSET_FREQ, OFFSET_CH_RECORDS, CH_RECORD_SIZE, CH_CURV_IDX, CH_VELO_IDX, CH_SH16_IDX, CH_BPM_IDX, OFFSET_AUX1_CANDIDATE, OFFSET_AUX2_CANDIDATE
 from src.fluxmo.diff import diff_presets, hexdump
 
 
@@ -51,6 +51,8 @@ Editable parameters (confirmed/likely):
   aux1       AUX1 mode index (experimental)   uint8  offset 0x1900 (provisional late AUX indexing)
   aux2       AUX2 mode index (experimental)    uint8  offset 0x1940 (late AUX indexing)
   dens       Trigger density 0–64             uint8  offset 0x0200
+  val        TM value                         float  offset 0x0100 (step-major float32)
+  comp       Curve compression -99..99         int8  offsets 0x0240 + 0x02C0 (channel-major)
   huma       Humanize 0–127                   uint8  offset 0x0340
   phas       Phase shift degrees 0–360        uint16 offset 0x0380
   mod_bus    Mod bus bitmask YEL=1,GRY=2,PUR=4 uint8 offset 0x0480
@@ -303,6 +305,18 @@ def cmd_map():
     print(f"  {'------':>8}  {'----':>5}  {'-----':<12}  ---------")
     for off, (name, cert) in sorted(STEP_ARRAYS_U8.items()):
         print(f"  0x{off:04X}    uint8  {name:<12}  {cert}")
+    print(
+        f"  0x{OFFSET_VAL:04X}   float32 {'VAL':<12}  CONFIRMED  "
+        "(64x4 bytes, step-major)"
+    )
+    print(
+        f"  0x{OFFSET_COMP_LO:04X}   int8    {'COMP_lo':<12}  CONFIRMED  "
+        "(64x1 bytes, channel-major)"
+    )
+    print(
+        f"  0x{OFFSET_COMP_HI:04X}   uint8   {'COMP_hi':<12}  CONFIRMED  "
+        "(64x1 bytes, channel-major; zero for -99..99)"
+    )
     print(f"  0x{OFFSET_PHAS:04X}   uint16  {'PHAS_deg':<12}  CONFIRMED  (64×2 bytes, 0-360°)")
     print(f"  0x{OFFSET_MINV:04X}   int16   {'MINV_mV':<12}  LIKELY     (64×2 bytes, signed mV)")
     print(f"  0x{OFFSET_MAXV:04X}   uint16  {'MAXV_mV':<12}  CONFIRMED  (64×2 bytes)")

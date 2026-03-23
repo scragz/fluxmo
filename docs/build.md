@@ -171,6 +171,8 @@ These fields are accepted in `step_defaults` and in each step object.
 | `aux1` | integer or string | `0..112` | `0` | — | Experimental AUX1 mode index or mode name. Written to the late-file AUX block at `0x1900` using the current provisional slot formula. |
 | `aux2` | integer or string | `0..112` | `0` | — | Experimental AUX2 mode index or mode name. Written to the late-file AUX block at `0x1940` using the current provisional slot formula. |
 | `huma` | integer | `0..127` | `0` | — | Humanize amount. |
+| `val` | number | any JSON number | `0.0` | — | Texture-matrix value. Stored as step-major `float32` at `0x0100`. |
+| `comp` | integer | `-99..99` | `0` | `comp%` | Curve compression percent. Stored in the confirmed channel-major low/high byte pair at `0x0240` and `0x02C0`. |
 | `phas` | integer | `0..360` | `0` | `phas_deg` | Phase in degrees. |
 | `cvsel` | integer | `0..9` | `0` | — | Uncertain field. |
 | `sync` | integer | `0..4` | `0` | — | Uncertain field. |
@@ -276,10 +278,13 @@ If you omit a field entirely, these built-in defaults are used:
 | `loop` | `1` |
 | `gate` | `10` |
 | `dens` | `1` |
+| `curv` | `0` (`1`) |
 | `leng` | `1` |
 | `aux1` | `0` (`OFF`) |
 | `aux2` | `0` (`OFF`) |
 | `huma` | `0` |
+| `val` | `0.0` |
+| `comp` | `0` |
 | `phas` | `0` |
 | `cvsel` | `0` |
 | `sync` | `0` |
@@ -352,11 +357,9 @@ Only parameters already mapped in the binary parser are supported here.
 
 Not yet accepted in JSON:
 
-- `COMP`
 - `DIFF`
 - `MASK`
 - `MSK>`
-- `VAL`
 - `ATK`
 - `REL`
 - `ACUR`
@@ -366,7 +369,9 @@ Not yet accepted in JSON:
 
 `AUX1` and `AUX2` are accepted using the current late-file mappings at `0x1900`
 and `0x1940`. `CURV` is accepted using the confirmed step-major enum block at
-`0x00C0`.
+`0x00C0`. `VAL` is accepted at `0x0100` as step-major `float32`, and `COMP` is
+accepted via the confirmed channel-major low/high byte pair at `0x0240` and
+`0x02C0`.
 
 When those offsets are decoded, they can be added to the builder format.
 

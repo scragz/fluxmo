@@ -9,6 +9,8 @@ from src.fluxmo.preset import FluxPreset, curve_name
 
 
 class BuildLoopInferenceTests(unittest.TestCase):
+    PROBE_COPY_SOURCE = 'data/2026-03-20/FLUX/DEFAULT_.TXT'
+
     def test_infers_loop_length_from_steps_array(self):
         preset = FluxPreset.from_dict({
             'channels': [
@@ -134,6 +136,46 @@ class BuildLoopInferenceTests(unittest.TestCase):
         self.assertEqual(parsed.tm_curv[2][1], 0x01)
         self.assertEqual(parsed.get_step(2, 1)['CURV'][0], '2.0')
 
+    def test_val_serializes_and_parses_from_0100_float_block(self):
+        preset = FluxPreset.from_dict({
+            'channels': [
+                {},
+                {},
+                {'steps': [{}, {'val': 6.0}]},
+            ],
+        })
+
+        raw = preset.to_bytes()
+
+        self.assertEqual(raw[0x0100 + 24:0x0100 + 28], bytes([0x00, 0x00, 0xC0, 0x40]))
+
+        parsed = FluxPreset()
+        parsed.raw = bytearray(raw)
+        parsed._parse()
+
+        self.assertEqual(parsed.val[2][1], 6.0)
+        self.assertEqual(parsed.get_step(2, 1)['VAL'][0], 6.0)
+
+    def test_comp_serializes_and_parses_from_channel_major_blocks(self):
+        preset = FluxPreset.from_dict({
+            'channels': [
+                {},
+                {'steps': [{}, {}, {}, {'comp': -20}]},
+            ],
+        })
+
+        raw = preset.to_bytes()
+
+        self.assertEqual(raw[0x0240 + 19], 0xEC)
+        self.assertEqual(raw[0x02C0 + 19], 0x00)
+
+        parsed = FluxPreset()
+        parsed.raw = bytearray(raw)
+        parsed._parse()
+
+        self.assertEqual(parsed.comp[1][3], -20)
+        self.assertEqual(parsed.get_step(1, 3)['COMP%'][0], -20)
+
     def test_cmd_set_curv_writes_00c0(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             out_path = Path(tmpdir) / 'set-curv.TXT'
@@ -150,6 +192,41 @@ class BuildLoopInferenceTests(unittest.TestCase):
             raw = Path(out_path).read_bytes()
 
         self.assertEqual(raw[0x00C0 + 6], 0x03)
+
+    def test_cmd_set_val_writes_0100_float_block(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_path = Path(tmpdir) / 'set-val.TXT'
+            with redirect_stdout(io.StringIO()):
+                cmd_set(
+                    'data/2024-09-15/DEFAULT_.TXT',
+                    'val',
+                    '3',
+                    '2',
+                    '6.0',
+                    str(out_path),
+                )
+
+            raw = Path(out_path).read_bytes()
+
+        self.assertEqual(raw[0x0100 + 24:0x0100 + 28], bytes([0x00, 0x00, 0xC0, 0x40]))
+
+    def test_cmd_set_comp_writes_channel_major_blocks(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_path = Path(tmpdir) / 'set-comp.TXT'
+            with redirect_stdout(io.StringIO()):
+                cmd_set(
+                    'data/2024-09-15/DEFAULT_.TXT',
+                    'comp',
+                    '2',
+                    '4',
+                    '-20',
+                    str(out_path),
+                )
+
+            raw = Path(out_path).read_bytes()
+
+        self.assertEqual(raw[0x0240 + 19], 0xEC)
+        self.assertEqual(raw[0x02C0 + 19], 0x00)
 
     def test_leng_must_be_between_1_and_32(self):
         with self.assertRaisesRegex(ValueError, 'must be >= 1'):
@@ -293,13 +370,13 @@ class BuildLoopInferenceTests(unittest.TestCase):
             with redirect_stdout(io.StringIO()):
                 cmd_probe_copy(
                     'data/2024-09-15/DEFAULT_.TXT',
-                    'DEFAULT_.TXT',
+                    self.PROBE_COPY_SOURCE,
                     '0x00C0:0x40',
                     str(out_path),
                 )
 
             raw = Path(out_path).read_bytes()
-            source = Path('DEFAULT_.TXT').read_bytes()
+            source = Path(self.PROBE_COPY_SOURCE).read_bytes()
             base = Path('data/2024-09-15/DEFAULT_.TXT').read_bytes()
 
         self.assertEqual(raw[0x00C0:0x0100], source[0x00C0:0x0100])
@@ -311,13 +388,13 @@ class BuildLoopInferenceTests(unittest.TestCase):
             with redirect_stdout(io.StringIO()):
                 cmd_probe_copy(
                     'data/2024-09-15/DEFAULT_.TXT',
-                    'DEFAULT_.TXT',
+                    self.PROBE_COPY_SOURCE,
                     '0x00C0:0x40,0x1BAA:0x2',
                     str(out_path),
                 )
 
             raw = Path(out_path).read_bytes()
-            source = Path('DEFAULT_.TXT').read_bytes()
+            source = Path(self.PROBE_COPY_SOURCE).read_bytes()
 
         self.assertEqual(raw[0x00C0:0x0100], source[0x00C0:0x0100])
         self.assertEqual(raw[0x1BAA:0x1BAC], source[0x1BAA:0x1BAC])
