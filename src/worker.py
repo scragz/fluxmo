@@ -1,7 +1,7 @@
 """Cloudflare Worker entrypoint for building FLUX preset binaries in memory."""
 
-from js import JSON
-from workers import Response, WorkerEntrypoint
+from js import JSON, Uint8Array  # type: ignore[import-not-found]
+from workers import Response, WorkerEntrypoint  # type: ignore[import-not-found]
 
 from fluxmo.preset import build_preset_bytes
 
@@ -63,7 +63,7 @@ class Default(WorkerEntrypoint):
             return _json_error(str(exc), 400)
 
         return Response(
-            preset_bytes,
+            Uint8Array.new(preset_bytes),
             headers=_headers(
                 {
                     "content-type": "application/octet-stream",
