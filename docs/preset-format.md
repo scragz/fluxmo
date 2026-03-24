@@ -43,7 +43,7 @@ Each entry covers all 64 step slots. Unless noted, each is 64 bytes (1 byte/slot
 | 0x0100–0x01FF | 4         | float32 LE | VAL    | 0.0     | CONFIRMED | Per-step TM value, step-major. 256 bytes = 64 × float32. Example: `MAC0204_.TXT` CH2 step4 reads back as `6.00` from `0x0134`. |
 | 0x0200        | 1         | uint8     | DENS    | 1       | CONFIRMED | Trigger density (0–64 gates per step). |
 | 0x0240        | 1         | int8      | COMP lo | 0       | CONFIRMED | Curve compression, channel-major (`ch*16 + step`). The low byte holds the full signed value for normal device range `-99..99`. |
-| 0x0280        | 1         | uint8     | (unk)   | 0       | UNCERTAIN | Unknown companion block between the COMP low/high arrays. Earlier `CURV` attribution was incorrect. |
+| 0x0280        | 1         | int8      | COMP mirror | 0  | CONFIRMED | **Must equal `0x0240`** (COMP_LO). The device writes the same signed COMP value to both blocks on every save. Leaving this block at zero while `0x0240` is non-zero causes a 4-digit overflow display on the device. |
 | 0x02C0        | 1         | uint8     | COMP hi | 0       | CONFIRMED | High byte for COMP, channel-major. Device values in the normal `-99..99` range keep this block at `0x00`; non-zero values cause overflow-style display output. |
 | 0x0300        | 1         | uint8     | DIFF?   | 0       | UNCERTAIN | `PROBE_C_.TXT` toggles only this block. Real presets are otherwise all zero so far, matching the user's "DIFF is always zero" observation. |
 | 0x0340        | 1         | uint8     | HUMA    | 0       | LIKELY    | Humanize amount (0–127). Values 20–100 seen in corpus. |

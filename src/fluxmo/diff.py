@@ -9,6 +9,8 @@ from .preset import (
     STEP_ARRAYS_U8, OFFSET_PHAS, OFFSET_MINV, OFFSET_MAXV, OFFSET_FREQ,
     OFFSET_CH_RECORDS, CH_RECORD_SIZE, CH_BPM_IDX, CH_CURV_IDX,
     CH_VELO_IDX, CH_SH16_IDX, OFFSET_AUX1_CANDIDATE, OFFSET_AUX2_CANDIDATE,
+    OFFSET_COMP_LO, OFFSET_COMP_COMPANION, OFFSET_COMP_HI,
+    STEPS_PER_CHANNEL,
 )
 
 
@@ -60,6 +62,21 @@ def _offset_note(off: int) -> str:
     if OFFSET_AUX2_CANDIDATE <= off < OFFSET_AUX2_CANDIDATE + 64:
         ch, step = _late_aux_position(off - OFFSET_AUX2_CANDIDATE)
         return f"AUX2 [ch{ch+1} step{step+1}] (UNCERTAIN late-file array)"
+
+    if OFFSET_COMP_LO <= off < OFFSET_COMP_LO + STEPS_PER_CHANNEL * 4:
+        ch_idx = off - OFFSET_COMP_LO
+        ch, step = ch_idx // STEPS_PER_CHANNEL, ch_idx % STEPS_PER_CHANNEL
+        return f"COMP_LO [ch{ch+1} step{step+1}] (CONFIRMED channel-major s8)"
+
+    if OFFSET_COMP_COMPANION <= off < OFFSET_COMP_COMPANION + STEPS_PER_CHANNEL * 4:
+        ch_idx = off - OFFSET_COMP_COMPANION
+        ch, step = ch_idx // STEPS_PER_CHANNEL, ch_idx % STEPS_PER_CHANNEL
+        return f"COMP_mirror [ch{ch+1} step{step+1}] (CONFIRMED companion, must equal COMP_LO)"
+
+    if OFFSET_COMP_HI <= off < OFFSET_COMP_HI + STEPS_PER_CHANNEL * 4:
+        ch_idx = off - OFFSET_COMP_HI
+        ch, step = ch_idx // STEPS_PER_CHANNEL, ch_idx % STEPS_PER_CHANNEL
+        return f"COMP_HI [ch{ch+1} step{step+1}] (CONFIRMED channel-major; non-zero = overflow display)"
 
     for array_off, (name, cert) in STEP_ARRAYS_U8.items():
         if array_off <= off < array_off + 64:

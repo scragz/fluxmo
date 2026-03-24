@@ -179,8 +179,10 @@ STEP_ARRAYS_U8 = {
     # 0x0100–0x01FF: VAL — see OFFSET_VAL below (float32 LE, 256 bytes = 64 × f32, step-major).
     #   Default=0.0. Confirmed: MAC0204 CH2 step4 shows "6.00" on display → f32=6.0 at 0x0134.
     0x0200: ("DENS", "CONFIRMED"),  # Trigger density (0–64 gates/step). Default=1.
-    # 0x0240: COMP lo byte — CONFIRMED channel-major (ch*16+step), s8. See OFFSET_COMP_LO.
-    # 0x0280: unknown/companion block. Earlier CURV attribution was incorrect.
+    # 0x0240: COMP primary byte — CONFIRMED channel-major (ch*16+step), s8. See OFFSET_COMP_LO.
+    # 0x0280: COMP companion/mirror — CONFIRMED channel-major. Must equal COMP_LO. See OFFSET_COMP_COMPANION.
+    #         Device writes the same COMP value to both 0x0240 and 0x0280. Leaving 0x0280 zero while
+    #         0x0240 is non-zero causes 4-digit overflow on the device display.
     # 0x02C0: COMP hi byte — CONFIRMED channel-major. 0x00 for COMP in range -99..+99. See OFFSET_COMP_HI.
     #         Writing non-zero causes 4-digit COMP overflow on device display.
     # 0x0300: unknown (all-zero in DEFAULT and corpus).
@@ -205,11 +207,16 @@ STEP_ARRAYS_U8 = {
 # VAL: Per-step value (float32 LE, 0.0 default). 256 bytes = 64 × float32, step-major.
 OFFSET_VAL = 0x0100  # CONFIRMED — f32. MAC0204 CH2 step4 = 6.0 ("6.00" on display).
 
-# COMP: Curve compression (bipolar, -99..+99). Two separate 64-byte blocks, channel-major (ch*16+step).
+# COMP: Curve compression (bipolar, -99..+99). Three 64-byte blocks, all channel-major (ch*16+step).
 OFFSET_COMP_LO = (
-    0x0240  # CONFIRMED — lo byte (s8). Stores the full value for range -99..+99.
+    0x0240  # CONFIRMED — primary value byte (s8). Stores the full value for range -99..+99.
 )
-OFFSET_COMP_HI = 0x02C0  # CONFIRMED — hi byte. 0x00 for values in -99..+99; non-zero causes overflow display.
+OFFSET_COMP_COMPANION = (
+    0x0280  # CONFIRMED mirror — device writes identical COMP value here alongside OFFSET_COMP_LO.
+    #          Must be populated; leaving it zero while COMP_LO is non-zero causes 4-digit overflow
+    #          display on device. Previously labelled "unknown companion block".
+)
+OFFSET_COMP_HI = 0x02C0  # CONFIRMED — high byte. 0x00 for values in -99..+99; non-zero causes overflow display.
 
 # PHAS: Phase shift in degrees, stored as uint16 LE (0–360°). 128 bytes = 64 × uint16, step-major.
 OFFSET_PHAS = 0x0380  # CONFIRMED
@@ -1142,6 +1149,7 @@ class FluxPreset:
                 )
                 ch_idx = ch * STEPS_PER_CHANNEL + step  # channel-major
                 d[OFFSET_COMP_LO + ch_idx] = self.comp[ch][step] & 0xFF
+                d[OFFSET_COMP_COMPANION + ch_idx] = self.comp[ch][step] & 0xFF  # mirror
                 d[OFFSET_COMP_HI + ch_idx] = 0x00
                 d[0x0340 + idx] = self.huma[ch][step] & 0xFF
                 struct.pack_into(
