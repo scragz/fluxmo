@@ -144,7 +144,10 @@ Each entry may be:
 - `null` to emit a default silent step
 
 `null` step entries are serialized as default silent steps: all known per-step
-fields are reset to their built-in defaults, then `dens` is forced to `0`.
+fields are reset to their built-in defaults, then `dens` is forced to `0`. Note
+that `dens: 0` written this way is intentional (silent step), but specifying
+`dens: 0` explicitly in a non-null step object is a validation error — the
+builder rejects it with `must be >= 1`.
 This means `null` does not inherit `step_defaults`.
 
 ## Channel Fields
@@ -165,7 +168,7 @@ These fields are accepted in `step_defaults` and in each step object.
 |-----|------|-------|---------|---------|-------|
 | `loop` | integer | `1..16` | `1` | — | Channel loop end. The builder writes loop range `1-loop`. If omitted, a non-empty `channels[n].steps` array infers the channel loop end from its entry count. |
 | `gate` | integer | `0..99` | `10` | `gate%` | Trigger length percent. |
-| `dens` | integer | `0..64` | `1` | — | Trigger density. |
+| `dens` | integer | `1..64` | `1` | — | Trigger density. **Minimum 1**; DENS=0 is undefined firmware behavior and causes display corruption. |
 | `curv` | integer or string | `0..57` | `0` | `curve` | Confirmed curve enum at `0x00C0`, step-major. Accepts numeric indices or labels such as `1`, `2.0`, `2.1`, `NL3.2`. |
 | `leng` | integer | `1..32` | `1` | `length` | Step length in 16ths. Manual text and corpus both show values above 8; `0` is treated as invalid by the builder. |
 | `aux1` | integer or string | `0..112` | `0` | — | Experimental AUX1 mode index or mode name. Written to the late-file AUX block at `0x1900` using the current provisional slot formula. |

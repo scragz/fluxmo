@@ -36,12 +36,12 @@ Each entry covers all 64 step slots. Unless noted, each is 64 bytes (1 byte/slot
 
 | Offset        | Bytes/slot | Type      | Param   | Default | Certainty | Notes |
 |---------------|-----------|-----------|---------|---------|-----------|-------|
-| 0x0000        | 1         | uint8     | LOOP    | 1       | UNCERTAIN | Legacy per-step mirror of loop end. Hardware loop UI does **not** follow this field; current firmware uses the control bytes at `0x0A00..0x0A07`. |
+| 0x0000        | 1         | uint8     | LOOP    | 1       | UNCERTAIN | Legacy per-step mirror of loop end. Hardware loop UI does **not** follow this field; current firmware uses the control bytes at `0x0A00..0x0A07`. All 88 corpus files have this entire block set to `0x01` uniformly, regardless of loop length. Builder writes `0x01` to all slots. |
 | 0x0040        | 1         | uint8     | GATE    | 10      | LIKELY    | Trigger length % (0–99). Values 10–90 in corpus. |
 | 0x0080        | 1         | uint8     | LENG    | 1       | CONFIRMED | Step length in 16ths. Device-saved presets show values from 1 up to 32; `1` displays as `1/16`. |
 | 0x00C0        | 1         | uint8     | CURV    | 1 (`1`) | CONFIRMED | Step-major curve enum. Device probes: `0x01 = 1`, `0x02 = 2.0`, `0x03 = 2.1`; `0x00` decodes as an invalid `PPQN64`-like value. |
 | 0x0100–0x01FF | 4         | float32 LE | VAL    | 0.0     | CONFIRMED | Per-step TM value, step-major. 256 bytes = 64 × float32. Example: `MAC0204_.TXT` CH2 step4 reads back as `6.00` from `0x0134`. |
-| 0x0200        | 1         | uint8     | DENS    | 1       | CONFIRMED | Trigger density (0–64 gates per step). |
+| 0x0200        | 1         | uint8     | DENS    | 1       | CONFIRMED | Trigger density (1–64 gates per step). **Never zero** in any corpus file; firmware behavior with DENS=0 is undefined and causes corrupted display output (e.g. LENG shown as garbage). Builder enforces minimum=1. |
 | 0x0240        | 1         | int8      | COMP lo | 0       | CONFIRMED | Curve compression, channel-major (`ch*16 + step`). The low byte holds the full signed value for normal device range `-99..99`. |
 | 0x0280        | 1         | int8      | COMP mirror | 0  | CONFIRMED | **Must equal `0x0240`** (COMP_LO). The device writes the same signed COMP value to both blocks on every save. Leaving this block at zero while `0x0240` is non-zero causes a 4-digit overflow display on the device. |
 | 0x02C0        | 1         | uint8     | COMP hi | 0       | CONFIRMED | High byte for COMP, channel-major. Device values in the normal `-99..99` range keep this block at `0x00`; non-zero values cause overflow-style display output. |

@@ -569,7 +569,7 @@ REFERENCE_TRAILING = (
 STEP_PARAM_SPECS = {
     "loop": ParamSpec("loop", "u8", "LIKELY", 1, 1, 16, "LOOP"),
     "gate": ParamSpec("gate", "u8", "LIKELY", 10, 0, 99, "GATE%", ("gate%",)),
-    "dens": ParamSpec("dens", "u8", "CONFIRMED", 1, 0, 64, "DENS"),
+    "dens": ParamSpec("dens", "u8", "CONFIRMED", 1, 1, 64, "DENS"),
     "curv": ParamSpec(
         "tm_curv", "u8", "CONFIRMED", 0, 0, len(CURVE_LABELS) - 1, "CURV", ("curve",)
     ),
@@ -1137,7 +1137,7 @@ class FluxPreset:
             for step in range(STEPS_PER_CHANNEL):
                 idx = self._slot(ch, step)
                 aux_idx = self._late_aux_slot(ch, step)
-                d[0x0000 + idx] = loop_end_by_channel[ch] & 0xFF
+                d[0x0000 + idx] = 0x01  # legacy per-step mirror; firmware ignores, always 0x01
                 d[0x0040 + idx] = self.gate[ch][step] & 0xFF
                 d[0x0080 + idx] = self.leng[ch][step] & 0xFF
                 d[OFFSET_AUX1_CANDIDATE + aux_idx] = self.aux1[ch][step] & 0xFF
