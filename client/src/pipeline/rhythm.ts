@@ -91,13 +91,32 @@ export function getStepTimelines(
   return { barLength, steps };
 }
 
-export function getPhaseCrunchEnabled(transforms: L2Transform[]): boolean {
-  const crunchTransforms = transforms.filter(
-    (transform) => transform.type === "set_phase_crunch",
-  ) as Extract<L2Transform, { type: "set_phase_crunch" }>[];
+export function getL2PhaseSettings(
+  transforms: L2Transform[],
+): { phases: number[]; spreads: number[] } {
+  let phases = [0, 0, 0, 0];
+  let spreads = [0, 0, 0, 0];
 
-  if (crunchTransforms.length === 0) return false;
-  return crunchTransforms[crunchTransforms.length - 1].enabled;
+  for (const transform of transforms) {
+    if (transform.type === "set_phase") {
+      phases[transform.channel] = transform.degrees;
+    } else if (
+      transform.type === "set_phase_spread" ||
+      transform.type === "set_drift"
+    ) {
+      spreads[transform.channel] = transform.degrees_per_step;
+    } else if (transform.type === "set_phase_all") {
+      if (transform.mode === "unison") {
+        phases = [0, 0, 0, 0];
+      } else if (transform.mode === "spread") {
+        phases = [0, 90, 180, 270];
+      } else if (transform.mode === "golden") {
+        phases = [0, 137.5, 275, 52.5];
+      }
+    }
+  }
+
+  return { phases, spreads };
 }
 
 export function getDensityDeltaMatrix(

@@ -37,8 +37,11 @@ export type L1Transform =
 
 export type L2Transform =
   | { type: "set_phase"; channel: 0 | 1 | 2 | 3; degrees: number }
+  | { type: "set_phase_spread"; channel: 0 | 1 | 2 | 3; degrees_per_step: number }
+  // Deprecated alias kept so older saved pipelines still replay correctly.
   | { type: "set_drift"; channel: 0 | 1 | 2 | 3; degrees_per_step: number }
   | { type: "set_phase_all"; mode: "unison" | "spread" | "golden" }
+  // Deprecated no-op kept so older saved pipelines still load.
   | { type: "set_phase_crunch"; enabled: boolean };
 
 export type L3Transform =

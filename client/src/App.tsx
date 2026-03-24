@@ -192,7 +192,6 @@ export default function App() {
       )}
       {state.activeLayer === "l2" && (
         <L2Constellation
-          state={state.l2State}
           transforms={state.pipeline.layers.l2}
           onTransform={(t) => dispatch({ type: "ADD_L2_TRANSFORM", transform: t })}
         />

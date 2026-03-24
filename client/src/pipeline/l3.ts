@@ -30,8 +30,8 @@ export function computeL3(l2State: PresetState, transforms: L3Transform[]): Pres
     // Calculate offset based on L2 phase if enabled
     let offset = 0;
     if (channelOffsetEnabled) {
-      // Find the base phase for this channel by looking at step 0's phase
-      // This is an approximation since drift could have affected it, but it's close enough
+      // Find the base phase for this channel by looking at step 0's phase.
+      // This is still an approximation because step spread may have shifted later steps.
       // To be exact, we'd need to pass the base phase from L2, but we can infer it
       const basePhase = channel.steps[0].phas;
       offset = Math.round((basePhase / 360) * loopLength) % loopLength;

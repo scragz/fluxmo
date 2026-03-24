@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { getDensityDeltaMatrix, getPhaseCrunchEnabled, getStepTimelines } from "../pipeline/rhythm";
+import { getDensityDeltaMatrix, getL2PhaseSettings, getStepTimelines } from "../pipeline/rhythm";
 import { L1Transform, L2Transform, L3Transform, PresetState } from "../pipeline/types";
 import { LayerId } from "../store";
 
@@ -65,7 +65,7 @@ export function DotGrid({
   const [draggingL2, setDraggingL2] = useState<number | null>(null);
 
   const densityDeltas = getDensityDeltaMatrix(l3Transforms, l3BaseState.channels);
-  const crunchEnabled = getPhaseCrunchEnabled(l2Transforms);
+  const { phases: basePhases } = getL2PhaseSettings(l2Transforms);
   const ratios = getRatios(l1Transforms);
 
   useEffect(() => {
@@ -83,7 +83,7 @@ export function DotGrid({
     latticeButtonsRef.current = [];
 
     if (activeLayer === "l2") {
-      drawPhaseRings(ctx, state, width, height, crunchEnabled, ringLayoutsRef.current);
+      drawPhaseRings(ctx, state, width, height, basePhases, ringLayoutsRef.current);
       return;
     }
 
@@ -93,7 +93,7 @@ export function DotGrid({
     }
 
     drawLatticeGrid(ctx, state, width, height, ratios, laneLayoutsRef.current, latticeButtonsRef.current);
-  }, [activeLayer, crunchEnabled, densityDeltas, height, ratios, state, width]);
+  }, [activeLayer, basePhases, densityDeltas, height, ratios, state, width]);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -396,7 +396,7 @@ function drawPhaseRings(
   state: PresetState,
   width: number,
   height: number,
-  crunchEnabled: boolean,
+  basePhases: number[],
   layouts: RingLayout[],
 ) {
   const cx = width / 2;
@@ -436,7 +436,7 @@ function drawPhaseRings(
       });
     });
 
-    const phase = channel.steps[0]?.phas || 0;
+    const phase = basePhases[channelIndex] ?? channel.steps[0]?.phas ?? 0;
     const handleAngle = (phase / 360) * Math.PI * 2 - Math.PI / 2;
     const handleX = cx + Math.cos(handleAngle) * radius;
     const handleY = cy + Math.sin(handleAngle) * radius;
