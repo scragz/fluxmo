@@ -6,7 +6,7 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "fluxmo",
 	"main": "src/worker.py",
-	"compatibility_date": "2025-02-01",
+	"compatibility_date": "2026-03-17",
 	"compatibility_flags": [
 		"python_workers"
 	],
